@@ -51,6 +51,12 @@ You can learn more about Okta and their APIs by reading the [Okta API documentat
 
 Using the keys above, this application will be able to authenticate you using Twitter, GitHub, and Okta.
 
+Finally, add a secret key to your config.py file:
+
+    SECRET_KEY = "KEY"
+
+This key is used by Flask and is required for this web application to run. Your secret key must be kept secret.
+
 Next, run the IndieAuth server using Flask:
 
     python3 app.py

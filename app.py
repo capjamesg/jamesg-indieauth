@@ -1,9 +1,8 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session, current_app
-from config import ME
+from .helpers import verify_code, get_rels
 import jwt
 import string
 import random
-import mf2py
 import requests
 from bs4 import BeautifulSoup
 import time
@@ -26,22 +25,6 @@ SCOPE_DEFINITIONS = {
     "channels": "Give permission to manage channels",
 }
 
-def get_rels(me_url):
-    home = requests.get(ME)
-
-    home_parsed = mf2py.parse(home.text)
-
-    if home_parsed.get("rels") and home_parsed["rels"].get("me"):
-        home_me_links = home_parsed["rels"]["me"]
-    else:
-        home_me_links = []
-
-    for link in home_me_links:
-        if link == me_url:
-            return True
-
-    return False
-
 @app.route("/")
 def index():
     return jsonify({"message": "Welcome to capjamesg's IndieAuth endpoint."})
@@ -62,10 +45,10 @@ def authorization_endpoint():
         scope = request.args.get("scope")
 
         if not client_id or not redirect_uri or not response_type or not state or not code_challenge or not code_challenge_method:
-            return jsonify({"error": "Missing required parameters."})
+            return jsonify({"error": "invalid_request."})
 
         if response_type != "code":
-            return jsonify({"error": "Only response_type=code is supported."})
+            return jsonify({"error": "invalid_request"})
 
         client_id_app = requests.get(client_id)
 
@@ -109,36 +92,29 @@ def authorization_endpoint():
             SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
             title="Authenticate to {}".format(client_id.replace("https://", "").replace("http://", "").strip()))
 
-    elif request.method == "POST":
-        grant_type = request.form.get("grant_type")
-        code = request.form.get("code")
-        client_id = request.form.get("client_id")
-        redirect_uri = request.form.get("redirect_uri")
-        code_verifier = request.form.get("code_verifier")
+    grant_type = request.form.get("grant_type")
+    code = request.form.get("code")
+    client_id = request.form.get("client_id")
+    redirect_uri = request.form.get("redirect_uri")
+    code_verifier = request.form.get("code_verifier")
 
-        if grant_type != "authorization_code":
-            return jsonify({"error": "Only grant_type=authorization_code is supported."})
+    if grant_type != "authorization_code":
+        return jsonify({"error": "invalid_request"})
 
-        if not code or not client_id or not redirect_uri or not code_verifier:
-            return jsonify({"error": "Missing required parameters."})
+    if not code or not client_id or not redirect_uri or not code_verifier:
+        return jsonify({"error": "invalid_request"})
 
-        try:
-            decoded_code = jwt.decode(code, app.config["SECRET_KEY"], algorithms=["HS256"])
-        except:
-            return jsonify({"error": "Invalid code."})
+    try:
+        decoded_code = jwt.decode(code, app.config["SECRET_KEY"], algorithms=["HS256"])
+    except:
+        return jsonify({"error": "invalid_grant"})
 
-        if int(time.time()) > decoded_code["expires"]:
-            return jsonify({"error": "Code has expired."})
+    message = verify_code(client_id, redirect_uri, decoded_code)
 
-        if redirect_uri != decoded_code["redirect_uri"]:
-            return jsonify({"error": "Invalid redirect_uri."})
-
-        if client_id != decoded_code["client_id"]:
-            return jsonify({"error": "Invalid client_id."})
+    if message != None:
+        return jsonify({"error": message})
 
         return jsonify({"me": decoded_code["me"]})
-    else:
-        return jsonify({"error": "Invalid request method."})   
 
 @app.route("/generate", methods=["POST"])
 def generate_key():
@@ -155,10 +131,10 @@ def generate_key():
     scope = request.form.get("scope")
 
     if not client_id or not redirect_uri or not response_type or not state or not code_challenge or not code_challenge_method:
-        return jsonify({"error": "Missing required parameters."})
+        return jsonify({"error": "invalid_request"})
 
     if response_type != "code":
-        return jsonify({"error": "Only response_type=code is supported."})
+        return jsonify({"error": "invalid_request"})
 
     final_scope = ""
 
@@ -182,7 +158,7 @@ def token_endpoint():
         authorization = request.headers.get("Authorization")
 
         if not authorization:
-            return jsonify({"error": "Missing required parameters."})
+            return jsonify({"error": "invalid_request"})
 
         authorization = authorization.replace("Bearer ", "")
 
@@ -255,24 +231,20 @@ def token_endpoint():
     code_verifier = request.form.get("code_verifier")
 
     if not code or not client_id or not redirect_uri or not grant_type or not code_verifier:
-        return jsonify({"error": "Missing required parameters."})
+        return jsonify({"error": "invalid_request"})
 
     if grant_type != "authorization_code":
-        return jsonify({"error": "Only grant_type=authorization_code is supported."})
+        return jsonify({"error": "invalid_request"})
 
     try:
         decoded_code = jwt.decode(code, app.config["SECRET_KEY"], algorithms=["HS256"])
     except Exception as e:
         return jsonify({"error": "Invalid code."})
 
-    if int(time.time()) > decoded_code["expires"]:
-        return jsonify({"error": "Code has expired."})
+    message = verify_code(client_id, redirect_uri, decoded_code)
 
-    if redirect_uri != decoded_code["redirect_uri"]:
-        return jsonify({"error": "Invalid redirect_uri."})
-
-    if client_id != decoded_code["client_id"]:
-        return jsonify({"error": "Invalid client_id."})
+    if message != None:
+        return jsonify({"error": message})
 
     scope = decoded_code["scope"]
     me = decoded_code["me"]
