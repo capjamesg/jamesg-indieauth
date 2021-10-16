@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Authenticate to {{ client_id.strip("/") }}</h1>
+<section>
+    <form method="POST" action="/generate">
+        {% if h_app_item %}
+            <p><a href="{{ h_app_item['url'] }}">{{ h_app_item["name"] }}</a> is requesting your permission to authorize yourself as {{ session.get("me") }}.</p>
+        {% else %}
+            <p><a href="{{ client_id }}">{{ client_id.replace("https://", "").replace("http://", "").strip("/") }}</a> is requesting your permission to authorize yourself as {{ session.get("me") }}.</p>
+        {% endif %}
+        <p>This application is requesting the following scopes:</p>
+        <ul>
+            {% for i in scope.split(" ") %}
+                <li><input type="checkbox" name="scope_{{ i }}" id="scope_{{ i }}" checked="checked" /> {{ i }}{% if SCOPE_DEFINITIONS.get(i) %}: {{ SCOPE_DEFINITIONS.get(i) }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+        <p>You will be redirected to {{ redirect_uri }} after authorization.</p>
+        {% if code_challenge %}<p>The client has sent their request using PKCE.</p>{% else %}<p>Note: The client has not sent their request using PKCE.</p>{% endif %}
+        <input type="hidden" name="client_id" value="{{ client_id }}">
+        <input type="hidden" name="me" value="{{ session.get('me') }}">
+        <input type="hidden" name="scope" value="{{ scope }}">
+        <input type="hidden" name="state" value="{{ state }}">
+        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+        <input type="hidden" name="response_type" value="{{ response_type }}">
+        <input type="hidden" name="code_challenge" value="{{ code_challenge }}">
+        <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}">
+        <input type="submit" value="Authorize">
+    </form>
+</section>
+{% endblock %}

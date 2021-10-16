@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}Micropub Endpoint{% endif %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <main>
+      <a href="#main" class="accessibility_label">Skip to main content</a>
+      <nav>
+        <p><a href="/">capjamesg's IndieAuth Endpoint</a></p>
+      </nav>
+      <div id="main">
+        {% block content %}
+        {% endblock %}
+      </div>
+      <p class="accessibility_label"><a href="#main">Go Back to the Top</a></p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+  <section>
+      <h1>Sign in</h1>
+      {% with messages = get_flashed_messages() %}
+         {% if messages %}
+            <ul class="message">
+            {% for message in messages %}
+               <li>{{ message }}</li>
+            {% endfor %}
+            </ul>
+         {% endif %}
+      {% endwith %}
+      <p>Welcome to capjamesg's IndieAuth Endpoint, {{ session.get("rel_me_check").replace("https://", "").replace("http://", "").strip("/") }}.</p>
+      <p>You must authenticate yourself before you are able to grant authorization codes.</p>
+      <p>You can use any of the authentication methods below to sign in to capjamesg's IndieAuth server.</p>
+      <ul class="rel_me_links">
+         {% for l in rel_me_links %}
+         {% if l.startswith("https://twitter.com") %}
+            <li><a href="/auth/twitter">Twitter</a>
+         {% elif l.startswith("https://github.com") %}
+            <li><a href="/auth/github">GitHub</a>
+         {% endif %}
+         {% endfor %}
+         <li><a href="/auth/passwordless">Mobile push notification</a></li>
+      </ul>
+  </section>
+{% endblock %}

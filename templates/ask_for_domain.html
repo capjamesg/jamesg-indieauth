@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Login</h1>
+<section>
+    {% with messages = get_flashed_messages() %}
+       {% if messages %}
+          <ul class="message">
+          {% for message in messages %}
+             <li>{{ message }}</li>
+          {% endfor %}
+          </ul>
+       {% endif %}
+    {% endwith %}
+    <form method="POST" action="/login">
+        <p>To log in, please provide your domain name.</p>
+        <p>Your domain must include at least one rel="me" link on its home page for authentication to work.</p>
+        <input type="url" name="domain" placeholder="Your domain name" pattern="https?://.+" required><br>
+        <input type="submit" value="Login">
+    </form>
+</section>
+{% endblock %}
