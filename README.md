@@ -1,6 +1,6 @@
 # James' IndieAuth Endpoint
 
-This repository contains the code for my IndieAuth endpoint. This endpoint has been developed to comply with the [IndieAuth specification](https://indieauth.spec.indieweb.org), a method of authentication built on top of OAuth 2.0.
+This repository contains the code for my IndieAuth endpoint. This endpoint has been developed in adherence with the [IndieAuth specification](https://indieauth.spec.indieweb.org), a method of authentication built on top of OAuth 2.0.
 
 Using this project, you can authenticate yourself to a service by using RelMeAuth. RelMeAuth requires you have rel="me" links on your blog that link to social profiles. At the moment, this project only supports the following rel=me links:
 
@@ -42,7 +42,7 @@ You can retrieve these pieces of information by following the GitHub "[Creating 
 
 Next, add your Okta API keys (leave all values you do not want to specify as ""):
 
-    OKTA_DOMAIN = "https://dev-23456okta.com"
+    OKTA_DOMAIN = "DOMAIN"
     OKTA_ACCESS_TOKEN = "TOKEN"
     OKTA_USER_ID = "ID"
     OKTA_FACTOR_ID = "ID"
