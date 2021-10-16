@@ -7,6 +7,8 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import sqlite3
+import hashlib
+import base64
 
 app = Blueprint('app', __name__)
 
@@ -44,7 +46,7 @@ def authorization_endpoint():
         code_challenge_method = request.args.get("code_challenge_method")
         scope = request.args.get("scope")
 
-        if not client_id or not redirect_uri or not response_type or not state or not code_challenge or not code_challenge_method:
+        if not client_id or not redirect_uri or not response_type or not state:
             return jsonify({"error": "invalid_request."})
 
         if response_type != "code":
@@ -114,7 +116,7 @@ def authorization_endpoint():
     if message != None:
         return jsonify({"error": message})
 
-        return jsonify({"me": decoded_code["me"]})
+    return jsonify({"me": decoded_code["me"]})
 
 @app.route("/generate", methods=["POST"])
 def generate_key():
@@ -130,7 +132,7 @@ def generate_key():
     code_challenge_method = request.form.get("code_challenge_method")
     scope = request.form.get("scope")
 
-    if not client_id or not redirect_uri or not response_type or not state or not code_challenge or not code_challenge_method:
+    if not client_id or not redirect_uri or not response_type or not state:
         return jsonify({"error": "invalid_request"})
 
     if response_type != "code":
@@ -159,6 +161,16 @@ def token_endpoint():
 
         if not authorization:
             return jsonify({"error": "invalid_request"})
+
+        connection = sqlite3.connect("tokens.db")
+
+        with connection:
+            cursor = connection.cursor()
+
+            is_revoked = cursor.execute("SELECT * FROM revoked1 WHERE token = ?", (authorization,)).fetchone()
+
+            if is_revoked:
+                return jsonify({"error": "invalid_grant"})
 
         authorization = authorization.replace("Bearer ", "")
 
@@ -230,7 +242,7 @@ def token_endpoint():
     redirect_uri = request.form.get("redirect_uri")
     code_verifier = request.form.get("code_verifier")
 
-    if not code or not client_id or not redirect_uri or not grant_type or not code_verifier:
+    if not code or not client_id or not redirect_uri or not grant_type:
         return jsonify({"error": "invalid_request"})
 
     if grant_type != "authorization_code":
@@ -240,6 +252,14 @@ def token_endpoint():
         decoded_code = jwt.decode(code, app.config["SECRET_KEY"], algorithms=["HS256"])
     except Exception as e:
         return jsonify({"error": "Invalid code."})
+
+    if code_verifier:
+        sha256_code = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
+
+        code_challenge = base64.b64encode(sha256_code.encode('utf-8')).decode('utf-8')
+
+        if code_challenge != decoded_code["code_challenge"]:
+            return jsonify({"error": "invalid_request"})
 
     message = verify_code(client_id, redirect_uri, decoded_code)
 
