@@ -1,5 +1,5 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session
-from config import TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET, ME, GITHUB_CLIENT_ID, GITHUB_OAUTH_REDIRECT, GITHUB_CLIENT_SECRET, \
+from .config import TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET, ME, GITHUB_CLIENT_ID, GITHUB_OAUTH_REDIRECT, GITHUB_CLIENT_SECRET, \
     OKTA_DOMAIN, OKTA_USER_ID, OKTA_FACTOR_ID, OKTA_ACCESS_TOKEN
 import string
 import random
@@ -8,7 +8,7 @@ import tweepy
 
 callbacks = Blueprint('callbacks', __name__)
 
-@app.route("/auth/twitter")
+@callbacks.route("/auth/twitter")
 def twitter_auth():
     auth = tweepy.OAuthHandler(TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET)
     auth_url = auth.get_authorization_url()
@@ -16,13 +16,13 @@ def twitter_auth():
     session.pop("rel_me_check")
     return redirect(auth_url)
 
-@app.route("/auth/github")
+@callbacks.route("/auth/github")
 def github_auth():
     state = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(32))
     session["github_state"] = state
     return redirect("https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}".format(GITHUB_CLIENT_ID, GITHUB_OAUTH_REDIRECT, state))
 
-@app.route("/auth/github/callback")
+@callbacks.route("/auth/github/callback")
 def github_callback():
     access_token = request.args.get("code")
     state = request.args.get("state")
@@ -68,7 +68,7 @@ def github_callback():
 
     return redirect("/")
 
-@app.route("/auth/twitter/callback")
+@callbacks.route("/auth/twitter/callback")
 def twitter_callback():
     auth = tweepy.OAuthHandler(TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET)
 
@@ -103,7 +103,7 @@ def twitter_callback():
         flash("Twitter authorization failed. Please try again.")
         return redirect("/login")
 
-@app.route("/auth/passwordless")
+@callbacks.route("/auth/passwordless")
 def passwordless_auth():
     headers = {
         "Accept": "application/json",
@@ -121,7 +121,7 @@ def passwordless_auth():
 
     return render_template("passwordless.html", title="Authenticate with a passwordless link")
 
-@app.route("/auth/passwordless/check")
+@callbacks.route("/auth/passwordless/check")
 def passwordless_check():
     if session.get("transaction_id") == None:
         return redirect("/login")

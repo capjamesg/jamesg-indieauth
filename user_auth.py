@@ -5,7 +5,7 @@ import mf2py
 
 user_auth = Blueprint('user_auth', __name__)
 
-@app.route("/login", methods=["GET", "POST"])
+@user_auth.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("rel_me_check"):
         return redirect("/rel")
@@ -31,7 +31,7 @@ def login():
         return redirect("/rel")
     return render_template("ask_for_domain.html", title="Login to capjamesg's IndieAuth Server")
 
-@app.route("/rel")
+@user_auth.route("/rel")
 def rel_login_stage():
     if not session.get("rel_me_check"):
         return redirect("/login")
