@@ -1,6 +1,7 @@
-from flask import request, Blueprint, jsonify, render_template, redirect, flash, session
+from flask import request, Blueprint, render_template, redirect, flash, session
 from .config import TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET, ME, GITHUB_CLIENT_ID, GITHUB_OAUTH_REDIRECT, GITHUB_CLIENT_SECRET, \
     OKTA_DOMAIN, OKTA_USER_ID, OKTA_FACTOR_ID, OKTA_ACCESS_TOKEN
+from .helpers import get_rels
 import string
 import random
 import requests
