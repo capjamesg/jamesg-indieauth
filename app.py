@@ -44,7 +44,8 @@ def authorization_endpoint():
             me = session.get("me")
 
         if request.args.get("me") and session.get("me") and request.args.get("me") != session.get("me"):
-            flash("{} is requesting you to sign in as {}. Please sign in as {}.")
+            session.pop("logged_in", None)
+            flash("{} is requesting you to sign in as {}. Please sign in as {}.".format(request.args.get("client_id"), request.args.get("me"), request.args.get("me")))
             return redirect("/login?r={}" .format(request.url))
 
         client_id = request.args.get("client_id")
