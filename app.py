@@ -30,7 +30,7 @@ SCOPE_DEFINITIONS = {
 
 @app.route("/")
 def index():
-    return jsonify({"message": "Welcome to capjamesg's IndieAuth endpoint."})
+    return render_template("index.html")
 
 @app.route("/auth", methods=['GET', 'POST'])
 def authorization_endpoint():
