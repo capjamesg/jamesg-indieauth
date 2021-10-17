@@ -1,5 +1,5 @@
 from flask import request, Blueprint, render_template, redirect, flash, session
-from config import ME
+from .config import ME
 import requests
 import mf2py
 

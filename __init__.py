@@ -55,5 +55,3 @@ def create_app():
         return render_template("404.html", title="Method not allowed", error=405), 405
 
     return app
-
-create_app()

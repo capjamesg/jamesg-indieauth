@@ -1,5 +1,6 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session, current_app
 from .helpers import verify_code, get_rels
+from .config import SECRET_KEY
 import jwt
 import string
 import random
@@ -34,10 +35,18 @@ def index():
 @app.route("/auth", methods=['GET', 'POST'])
 def authorization_endpoint():
     if request.method == "GET":
-        if session.get("logged_in") != True:
+        me = request.args.get("me")
+
+        if session.get("logged_in") != True and not me:
             return redirect("/login?r={}" .format(request.url))
 
-        me = request.args.get("me")
+        if not me and session.get("logged_in") == True:
+            me = session.get("me")
+
+        if request.args.get("me") and session.get("me") and request.args.get("me") != session.get("me"):
+            flash("{} is requesting you to sign in as {}. Please sign in as {}.")
+            return redirect("/login?r={}" .format(request.url))
+
         client_id = request.args.get("client_id")
         redirect_uri = request.args.get("redirect_uri")
         response_type = request.args.get("response_type")
@@ -55,6 +64,45 @@ def authorization_endpoint():
         client_id_app = requests.get(client_id)
 
         h_app_item = None
+
+        redirect_uri_domain = redirect_uri.split("/")[2]
+        client_id_domain = client_id.split("/")[2]
+
+        redirect_uri_scheme = redirect_uri.split("/")[0]
+        client_id_scheme = client_id.split("/")[0]
+
+        if redirect_uri_domain != client_id_domain or redirect_uri_scheme != client_id_scheme:
+            fetch_client = requests.get(client_id)
+
+            link_headers = fetch_client.headers.get("link")
+
+            confirmed_redirect_uri = False
+
+            if link_headers:
+                for link in link_headers.split(","):
+                    if "rel=\"redirect_uri\"" in link:
+                        url = link.split(";")[0].strip("<>")
+
+                        if url.startswith("/"):
+                            url = redirect_uri_scheme + redirect_uri_domain.strip("/") + url
+
+                        if url == redirect_uri:
+                            confirmed_redirect_uri = True
+
+            link_tags = BeautifulSoup(fetch_client.text, "html.parser").find_all("link")
+
+            for link in link_tags:
+                if link.get("rel") == "redirect_uri":
+                    URL = link.get("href")
+
+                    if url.startswith("/"):
+                        url = redirect_uri_scheme + redirect_uri_domain.strip("/") + url
+
+                    if url == redirect_uri:
+                        confirmed_redirect_uri = True
+
+            if not confirmed_redirect_uri:
+                return jsonify({"error": "invalid_request"})
 
         if client_id_app.status_code == 200:
             h_x_app = BeautifulSoup(client_id_app.text, "html.parser")
@@ -98,16 +146,27 @@ def authorization_endpoint():
     code = request.form.get("code")
     client_id = request.form.get("client_id")
     redirect_uri = request.form.get("redirect_uri")
-    code_verifier = request.form.get("code_verifier")
+    code_challenge = request.form.get("code_challenge")
+    code_challenge_method = request.form.get("code_challenge_method")
 
     if grant_type != "authorization_code":
         return jsonify({"error": "invalid_request"})
 
-    if not code or not client_id or not redirect_uri or not code_verifier:
+    if not code or not client_id or not redirect_uri:
         return jsonify({"error": "invalid_request"})
 
+    if code_challenge and code_challenge_method:
+        if code_challenge_method != "S256":
+            return jsonify({"error": "invalid_request"})
+
+        if len(code_challenge) < 43:
+            return jsonify({"error": "invalid_request"})
+
+        if len(code_challenge) > 128:
+            return jsonify({"error": "invalid_request"})
+
     try:
-        decoded_code = jwt.decode(code, app.config["SECRET_KEY"], algorithms=["HS256"])
+        decoded_code = jwt.decode(code, SECRET_KEY, algorithms=["HS256"])
     except:
         return jsonify({"error": "invalid_grant"})
 
@@ -147,8 +206,8 @@ def generate_key():
     random_string = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
     encoded_code = jwt.encode(
-        {"me": me, "random_string": random_string, "expires": int(time.time()) + 3600, "client_id": client_id, "redirect_uri": redirect_uri, "scope": final_scope},
-        app.config["SECRET_KEY"],
+        {"me": me, "random_string": random_string, "expires": int(time.time()) + 3600, "client_id": client_id, "redirect_uri": redirect_uri, "scope": final_scope, "code_challenge": code_challenge, "code_challenge_method": code_challenge_method},
+        SECRET_KEY,
         algorithm="HS256"
     )
 
@@ -157,9 +216,9 @@ def generate_key():
 @app.route("/token", methods=["GET", "POST"])
 def token_endpoint():
     if request.method == "GET":
-        authorization = request.headers.get("Authorization")
+        authorization = request.headers.get("authorization")
 
-        if not authorization:
+        if authorization == None:
             return jsonify({"error": "invalid_request"})
 
         connection = sqlite3.connect("tokens.db")
@@ -167,7 +226,7 @@ def token_endpoint():
         with connection:
             cursor = connection.cursor()
 
-            is_revoked = cursor.execute("SELECT * FROM revoked1 WHERE token = ?", (authorization,)).fetchone()
+            is_revoked = cursor.execute("SELECT * FROM revoked WHERE token = ?", (authorization,)).fetchone()
 
             if is_revoked:
                 return jsonify({"error": "invalid_grant"})
@@ -175,8 +234,7 @@ def token_endpoint():
         authorization = authorization.replace("Bearer ", "")
 
         try:
-            decoded_authorization_code = jwt.decode(authorization, app.config["SECRET_KEY"], algorithms=["HS256"])
-
+            decoded_authorization_code = jwt.decode(authorization, SECRET_KEY, algorithms=["HS256"])
         except:
             return jsonify({"error": "invalid_code"})
 
@@ -225,7 +283,7 @@ def token_endpoint():
 
                 return jsonify({"me": me, "client_id": client_id, "scope": scope, "profile": profile})
 
-            return jsonify({"me": me, "client_id": client_id, "scope": scope})
+        return jsonify({"me": me, "client_id": client_id, "scope": scope})
 
     action = request.form.get("action")
 
@@ -249,7 +307,7 @@ def token_endpoint():
         return jsonify({"error": "invalid_request"})
 
     try:
-        decoded_code = jwt.decode(code, app.config["SECRET_KEY"], algorithms=["HS256"])
+        decoded_code = jwt.decode(code, SECRET_KEY, algorithms=["HS256"])
     except Exception as e:
         return jsonify({"error": "Invalid code."})
 
@@ -271,7 +329,7 @@ def token_endpoint():
 
     access_token = jwt.encode(
         {"me": me, "expires": int(time.time()) + 360000, "client_id": client_id, "redirect_uri": redirect_uri, "scope": scope},
-        current_app.config["SECRET_KEY"],
+        SECRET_KEY,
         algorithm="HS256"
     )
     
