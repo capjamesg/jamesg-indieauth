@@ -37,16 +37,13 @@ def authorization_endpoint():
     if request.method == "GET":
         me = request.args.get("me")
 
-        if session.get("logged_in") != True and not me:
-            return redirect("/login?r={}" .format(request.url))
-
-        if not me and session.get("logged_in") == True:
-            me = session.get("me")
-
         if request.args.get("me") and session.get("me") and request.args.get("me").strip("/").replace("https://", "").replace("http://", "") != session.get("me").strip("/").replace("https://", "").replace("http://", ""):
             session.pop("logged_in", None)
             session.pop("me", None)
             flash("{} is requesting you to sign in as {}. Please sign in as {}.".format(request.args.get("client_id"), request.args.get("me"), request.args.get("me")))
+            return redirect("/login?r={}" .format(request.url))
+
+        if session.get("logged_in") != True:
             return redirect("/login?r={}" .format(request.url))
 
         client_id = request.args.get("client_id")
