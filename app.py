@@ -310,7 +310,7 @@ def token_endpoint():
     except Exception as e:
         return jsonify({"error": "Invalid code."})
 
-    if code_verifier:
+    if code_verifier != None and decoded_code["code_challenge_method"] == "S256":
         sha256_code = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
 
         code_challenge = base64.b64encode(sha256_code.encode('utf-8')).decode('utf-8')

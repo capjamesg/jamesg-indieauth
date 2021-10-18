@@ -48,10 +48,14 @@ def create_app():
 
     @app.errorhandler(404)
     def page_not_found(e):
-        return render_template("404.html", title="Page not found", error=404), 404
+        return render_template("error.html", title="Page not found", error=404), 404
 
     @app.errorhandler(405)
     def method_not_allowed(e):
-        return render_template("404.html", title="Method not allowed", error=405), 405
+        return render_template("error.html", title="Method not allowed", error=405), 405
+
+    @app.errorhandler(500)
+    def server_error(e):
+        return render_template("error.html", title="Server error", error=500), 500
 
     return app
