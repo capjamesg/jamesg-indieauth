@@ -343,3 +343,9 @@ section li {
 	margin: auto;
 	max-width: 35em;
 }
+.error {
+	border: 1px solid red;
+}
+.warning {
+	border: 1px solid orange;
+}
