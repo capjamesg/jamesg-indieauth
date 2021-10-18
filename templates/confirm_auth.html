@@ -15,7 +15,7 @@
             {% endfor %}
         </ul>
         <p>You will be redirected to {{ redirect_uri }} after authorization.</p>
-        {% if code_challenge %}<p>The client has sent their request using PKCE.</p>{% else %}<p>Note: The client has not sent their request using PKCE.</p>{% endif %}
+        {% if code_challenge %}<p>The client has sent their request using PKCE.</p>{% elif code_challenge_method and code_challenge_method != "S256" %}<p>The client has sent their request using PKCE but does not use S256. PKCE will not be used for authentication.</p>{% else %}<p>Note: The client has not sent their request using PKCE.</p>{% endif %}
         <input type="hidden" name="client_id" value="{{ client_id }}">
         <input type="hidden" name="me" value="{{ session.get('me') }}">
         <input type="hidden" name="scope" value="{{ scope }}">
