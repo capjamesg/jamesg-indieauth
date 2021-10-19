@@ -57,7 +57,7 @@ def authorization_endpoint():
         if not client_id or not redirect_uri or not response_type or not state:
             return jsonify({"error": "invalid_request."})
 
-        if response_type != "code":
+        if response_type != "code" and response_type != "id":
             return jsonify({"error": "invalid_request"})
 
         client_id_app = requests.get(client_id)
@@ -193,7 +193,7 @@ def generate_key():
     if not client_id or not redirect_uri or not response_type or not state:
         return jsonify({"error": "invalid_request"})
 
-    if response_type != "code":
+    if response_type != "code" and response_type != "id":
         return jsonify({"error": "invalid_request"})
 
     final_scope = ""
@@ -234,7 +234,10 @@ def token_endpoint():
 
         try:
             decoded_authorization_code = jwt.decode(authorization, SECRET_KEY, algorithms=["HS256"])
-        except:
+        except Exception as e:
+            print(e)
+            print(e)
+            print(e)
             return jsonify({"error": "invalid_code"})
 
         if int(time.time()) > decoded_authorization_code["expires"]:
@@ -333,3 +336,39 @@ def token_endpoint():
     )
     
     return jsonify({"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me})
+
+@app.route("/.well-known/oauth-authorization-server")
+def oauth_authorization_server():
+    oauth_server = {
+        "authorization_endpoint": "https://auth.jamesg.blog/auth",
+        "code_challenge_methods_supported": [
+            "S256"
+        ],
+        "grant_types_supported": [
+            "authorization_code"
+        ],
+        "issuer": "https://auth.jamesg.blog/auth",
+        "response_modes_supported": [
+            "query"
+        ],
+        "response_types_supported": [
+            "code"
+        ],
+        "scopes_supported": [
+            "create",
+            "update",
+            "delete",
+            "undelete",
+            "media",
+            "profile",
+            "email",
+            "read",
+            "follow",
+            "mute",
+            "block",
+            "channels"
+        ],
+        "token_endpoint": "https://auth.jamesg.blog/token"
+    }
+    
+    return jsonify(oauth_server)
