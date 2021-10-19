@@ -107,11 +107,15 @@ def authorization_endpoint():
             h_x_app = BeautifulSoup(client_id_app.text, "html.parser")
             h_app_item = h_x_app.select(".h-app")
 
+            if not h_app_item:
+                h_app_item = h_x_app.select(".h-x-app")
+
             if h_app_item:
                 h_app_item = h_app_item[0]
                 logo = h_app_item.select(".u-logo")
                 name = h_app_item.select(".p-name")
                 url = h_app_item.select(".u-url")
+                summary = h_app_item.select(".p-summary")
 
                 h_app_item = {}
 
@@ -127,6 +131,9 @@ def authorization_endpoint():
                     h_app_item["url"] = url[0].get("href")
                 else:
                     h_app_item["url"] = client_id
+
+                if summary and summary[0].text.strip() != "":
+                    h_app_item["summary"] = summary[0].text
 
         return render_template("confirm_auth.html",
             scope=scope,

@@ -349,3 +349,6 @@ section li {
 .warning {
 	border: 1px solid orange;
 }
+.green_border {
+	border: 1px solid lightgreen;
+}
