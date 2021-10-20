@@ -59,7 +59,8 @@ This key is used by Flask and is required for this web application to run. Your 
 
 Next, run the IndieAuth server using Flask:
 
-    python3 app.py
+    export FLASK_APP=.
+    flask run
 
 If you plan to deploy the server on production, please use an appropriate production deployment method (i.e. using Gunicorn) as you would for any other Flask application.
 

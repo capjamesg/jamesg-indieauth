@@ -1,17 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Authenticate to {{ client_id.replace("https://", "").replace("http://", "")) }}</h1>
 <section>
     <form method="POST" action="/generate">
         {% if h_app_item %}
-            {% if h_app_item.get("image") %}
-                <img src="{{ h_app_item.get('image') }}" alt="{{ h_app_item.get('name') }} logo" height="50" width="50" />
+            <h1>Authenticate to {{ h_app_item["name"] }}</h1>
+            {% if h_app_item.get("logo") %}
+                <img src="{{ h_app_item.get('logo') }}" alt="{{ h_app_item.get('name') }} logo" height="50" width="50" />
             {% endif %}
             <p><a href="{{ h_app_item['url'] }}">{{ h_app_item["name"] }}</a> is requesting your permission to authorize yourself as {{ session.get("me") }}.</p>
-            {% if h_app_item.get("description") %}
-                <p class="message">{{ h_app_item['description'] }}</p>
+            {% if h_app_item.get("summary") %}
+                <p>This site describes itself like so:</p>
+                <p class="message">{{ h_app_item['summary'] }}</p>
             {% endif %}
         {% else %}
+        <h1>Authenticate to {{ client_id.replace("https://", "").replace("http://", "") }}</h1>
             <p><a href="{{ client_id }}">{{ client_id.replace("https://", "").replace("http://", "") }}</a> is requesting your permission to authorize yourself as {{ session.get("me") }}.</p>
         {% endif %}
         {% if scope %}

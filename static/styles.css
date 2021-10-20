@@ -344,11 +344,11 @@ section li {
 	max-width: 35em;
 }
 .error {
-	border: 1px solid red;
+	border: 2px solid red;
 }
 .warning {
-	border: 1px solid orange;
+	border: 2px solid orange;
 }
 .green_border {
-	border: 1px solid lightgreen;
+	border: 2px solid lightgreen;
 }

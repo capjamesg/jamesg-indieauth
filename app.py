@@ -125,7 +125,17 @@ def authorization_endpoint():
                     h_app_item["name"] = client_id
 
                 if logo:
-                    h_app_item["logo"] = logo[0].get("src")
+                    logo_to_validate = logo[0].get("src")
+                    if logo[0].get("src").startswith("/"):
+                        logo_to_validate = redirect_uri_scheme + redirect_uri_domain.strip("/") + logo[0].get("src")
+                    elif logo[0].get("src").startswith("//"):
+                        logo_to_validate = redirect_uri_scheme + logo[0].get("src")
+                    elif logo[0].get("src").startswith("http://") or logo[0].get("src").startswith("https://"):
+                        logo_to_validate = logo[0].get("src")
+                    else:
+                        logo_to_validate = redirect_uri_scheme + redirect_uri_domain.strip("/") + "/" + logo[0].get("src")
+
+                    h_app_item["logo"] = logo_to_validate
                 
                 if url and url[0].get("href").strip() != "":
                     h_app_item["url"] = url[0].get("href")
@@ -320,13 +330,13 @@ def token_endpoint():
     except Exception as e:
         return jsonify({"error": "Invalid code."})
 
-    if code_verifier != None and decoded_code["code_challenge_method"] == "S256":
-        sha256_code = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
+    # if code_verifier != None and decoded_code["code_challenge_method"] == "S256":
+    #     sha256_code = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
 
-        code_challenge = base64.b64encode(sha256_code.encode('utf-8')).decode('utf-8')
+    #     code_challenge = base64.b64encode(sha256_code.encode('utf-8')).decode('utf-8')
 
-        if code_challenge != decoded_code["code_challenge"]:
-            return jsonify({"error": "invalid_request"})
+    #     if code_challenge != decoded_code["code_challenge"]:
+    #         return jsonify({"error": "invalid_request"})
 
     message = verify_code(client_id, redirect_uri, decoded_code)
 
