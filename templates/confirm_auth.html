@@ -27,6 +27,7 @@
         <p>This application has not requested any scopes.</p>
         {% endif %}
         <p>You will be redirected to {{ redirect_uri }} after authorization.</p>
+        {% if client_id.split("/")[2] != redirect_uri.split("/")[2] %}<p class="message warning">The client is attempting to redirect you to a URL that is on a different domain. Please verify the redirect URL above to make sure it is correct before proceeding.</p>{% endif %}
         {% if code_challenge %}<p class="message green_border">The client has sent their request using PKCE.</p>{% elif code_challenge_method and code_challenge_method != "S256" %}<p class="message error">The client has sent their request using PKCE but does not use S256. PKCE will not be used for authentication.</p>{% else %}<p class="message warning">Note: The client has not sent their request using PKCE.</p>{% endif %}
         <input type="hidden" name="client_id" value="{{ client_id }}">
         <input type="hidden" name="me" value="{{ session.get('me') }}">

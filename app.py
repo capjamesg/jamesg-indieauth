@@ -252,9 +252,6 @@ def token_endpoint():
         try:
             decoded_authorization_code = jwt.decode(authorization, SECRET_KEY, algorithms=["HS256"])
         except Exception as e:
-            print(e)
-            print(e)
-            print(e)
             return jsonify({"error": "invalid_code"})
 
         if int(time.time()) > decoded_authorization_code["expires"]:
@@ -330,13 +327,13 @@ def token_endpoint():
     except Exception as e:
         return jsonify({"error": "Invalid code."})
 
-    # if code_verifier != None and decoded_code["code_challenge_method"] == "S256":
-    #     sha256_code = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
+    if code_verifier != None and decoded_code["code_challenge_method"] == "S256":
+        sha256_code = hashlib.sha256(code_verifier.encode('utf-8')).hexdigest()
 
-    #     code_challenge = base64.b64encode(sha256_code.encode('utf-8')).decode('utf-8')
+        code_challenge = base64.b64encode(sha256_code.encode('utf-8')).decode('utf-8')
 
-    #     if code_challenge != decoded_code["code_challenge"]:
-    #         return jsonify({"error": "invalid_request"})
+        if code_challenge != decoded_code["code_challenge"]:
+            return jsonify({"error": "invalid_request"})
 
     message = verify_code(client_id, redirect_uri, decoded_code)
 

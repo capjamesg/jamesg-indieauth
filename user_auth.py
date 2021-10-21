@@ -7,11 +7,13 @@ user_auth = Blueprint('user_auth', __name__)
 
 @user_auth.route("/login", methods=["GET", "POST"])
 def login():
+    if request.args.get("r"):
+        # this approach is used because args.get separates any ? in the r= query string
+        session["user_redirect"] = request.url.split("?")[1].replace("r=", "")
+        print(session["user_redirect"])
+
     if session.get("rel_me_check"):
         return redirect("/rel")
-
-    if request.args.get("r"):
-        session["user_redirect"] = request.args.get("r")
 
     if session.get("me"):
         if session.get("user_redirect"):
