@@ -242,7 +242,7 @@ def token_endpoint():
         with connection:
             cursor = connection.cursor()
 
-            is_revoked = cursor.execute("SELECT * FROM revoked WHERE token = ?", (authorization,)).fetchone()
+            is_revoked = cursor.execute("SELECT * FROM revoked_tokens WHERE token = ?", (authorization,)).fetchone()
 
             if is_revoked:
                 return jsonify({"error": "invalid_grant"})
@@ -306,9 +306,12 @@ def token_endpoint():
     if action and action == "revoke":
         connection = sqlite3.connect("tokens.db")
 
-        cursor = connection.cursor()
+        with connection:
+            cursor = connection.cursor()
 
-        cursor.execute("INSERT INTO revoked_tokens (token) VALUES (?)", (request.form.get("token"),))
+            cursor.execute("INSERT INTO revoked_tokens VALUES (?)", (request.form.get("token"),))
+
+        return "", 200
 
     grant_type = request.form.get("grant_type")
     code = request.form.get("code")

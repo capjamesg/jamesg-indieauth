@@ -1,8 +1,6 @@
 from flask import Flask, render_template, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 from .config import SECRET_KEY
 import os
 
@@ -14,12 +12,6 @@ def create_app():
 
     # read config.py file
     app.config.from_pyfile(os.path.join(".", "config.py"), silent=False)
-
-    Limiter(
-        app,
-        key_func=get_remote_address,
-        default_limits=["200 per day", "50 per hour"]
-    )
 
     db.init_app(app)
 
