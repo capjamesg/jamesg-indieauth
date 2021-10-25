@@ -146,8 +146,6 @@ def passwordless_check():
     session["me"] = ME
     session["logged_in"] = True
 
-    print(session)
-
     if session.get("user_redirect"):
         redirect_uri = session.get("user_redirect")
         session.pop("user_redirect")

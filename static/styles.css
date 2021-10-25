@@ -84,6 +84,11 @@ footer li {
 }
 h1 {
 	font-size: 2rem;
+	display: inline-block;
+	margin-bottom: 5px;
+}
+h1, h2, h3, h4, h5, h6, p, a, span {
+	max-width: 100%;
 }
 .form_div {
 	margin: auto;
@@ -133,6 +138,9 @@ pre {
 
 	nav li {
 		margin-bottom: 10px;
+	}
+	ul {
+		padding: 0;
 	}
 }
 h2, h1, h3 {
@@ -243,6 +251,8 @@ input[type="text"], input[type="username"], input[type="password"], input[type="
     text-align: left;
     min-width: 50%;
     font-size: 1.0625rem;
+	box-sizing: border-box;
+	width: 100%;
 }
 textarea {
 	width: 75%;
@@ -305,10 +315,6 @@ li {
 		text-align: center;
 	}
 }
-h1 {
-	display: inline-block;
-	margin-bottom: 5px;
-}
 pre {
   background-color: white;
   border: 2.5px dotted orange;
@@ -332,6 +338,10 @@ section li {
 }
 .rel_me_links li {
 	list-style-type: disc;
+}
+.rel_me_links {
+	padding: 0;
+	list-style-position: inside;
 }
 #main {
 	background-color: white;

@@ -1,5 +1,5 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session, current_app
-from .helpers import verify_code, get_rels
+from .helpers import verify_code
 from .config import SECRET_KEY
 import jwt
 import string

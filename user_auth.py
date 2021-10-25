@@ -1,16 +1,19 @@
 from flask import request, Blueprint, render_template, redirect, flash, session
-from .config import ME
+from .config import ME, AUTH_SERVER_URL
 import requests
+import urllib
 import mf2py
 
 user_auth = Blueprint('user_auth', __name__)
 
 @user_auth.route("/login", methods=["GET", "POST"])
 def login():
-    if request.args.get("r"):
+    if request.args.get("r") and request.args.get("r").startswith(AUTH_SERVER_URL):
         # this approach is used because args.get separates any ? in the r= query string
-        session["user_redirect"] = request.url.split("?")[1].replace("r=", "")
-        print(session["user_redirect"])
+        url = urllib.parse.urlparse(request.url)
+        
+        if url:
+            session["user_redirect"] = urllib.parse.parse_qs(url.query)["r"][0]
 
     if session.get("rel_me_check"):
         return redirect("/rel")

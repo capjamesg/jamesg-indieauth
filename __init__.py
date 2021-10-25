@@ -1,11 +1,6 @@
-from flask import Flask, render_template, session
-from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask import Flask, render_template
 from .config import SECRET_KEY
 import os
-
-# init SQLAlchemy so we can use it later in our models
-db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__)
@@ -13,13 +8,7 @@ def create_app():
     # read config.py file
     app.config.from_pyfile(os.path.join(".", "config.py"), silent=False)
 
-    db.init_app(app)
-
     app.secret_key = SECRET_KEY
-
-    login_manager = LoginManager()
-    login_manager.login_view = 'main.login'
-    login_manager.init_app(app)
 
     # blueprint for non-auth parts of app
     from .app import app as main_blueprint
@@ -34,10 +23,6 @@ def create_app():
 
     app.register_blueprint(user_auth_blueprint)
 
-    @login_manager.user_loader
-    def load_user(user_id):
-        return session.get(user_id)
-
     @app.errorhandler(404)
     def page_not_found(e):
         return render_template("error.html", title="Page not found", error=404), 404
@@ -51,3 +36,7 @@ def create_app():
         return render_template("error.html", title="Server error", error=500), 500
 
     return app
+
+if __name__ == "__main__":
+    app = create_app()
+    app.run()
