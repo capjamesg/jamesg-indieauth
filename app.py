@@ -1,4 +1,4 @@
-from flask import request, Blueprint, jsonify, render_template, redirect, flash, session, current_app
+from flask import request, Blueprint, jsonify, render_template, redirect, flash, session
 from .helpers import verify_code
 from .config import SECRET_KEY
 import jwt
@@ -26,6 +26,8 @@ SCOPE_DEFINITIONS = {
     "mute": "Give permission to mute and unmute feeds",
     "block": "Give permission to block and unblock feeds",
     "channels": "Give permission to manage channels",
+    "draft": "Give permission to create draft posts",
+    "post": "Give permission to post to your site",
 }
 
 @app.route("/")
@@ -124,7 +126,7 @@ def authorization_endpoint():
                 else:
                     h_app_item["name"] = client_id
 
-                if logo:
+                if logo and len(logo) > 0 and logo[0].get("src"):
                     logo_to_validate = logo[0].get("src")
                     if logo[0].get("src").startswith("/"):
                         logo_to_validate = redirect_uri_scheme + redirect_uri_domain.strip("/") + logo[0].get("src")
