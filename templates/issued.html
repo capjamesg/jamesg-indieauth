@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Issued Tokens</h1>
+<section>
+    <p>View the tokens you have issued from this endpoint.</p>
+    {% if issued_tokens %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Token</th>
+                    <th>URL Authorized</th>
+                    <th>Issued On</th>
+                    <th>Issued To</th>
+                    <th>Expires</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for token in issued_tokens %}
+                <tr>
+                    <td>{{ token[0][-5:] }}</td>
+                    <td>{{ token[1] }}</td>
+                    <td>{{ token[2] }}</td>
+                    <td>{{ token[3] }}</td>
+                    <td><a href="/revoke?token={{ token[0] }}">Revoke</a></td>
+                </tr>
+                {% endfor %}
+        </table>
+    {% else %}
+        <p>You have not issued any tokens yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

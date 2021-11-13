@@ -16,6 +16,12 @@
       <a href="#main" class="accessibility_label">Skip to main content</a>
       <nav>
         <p><a href="/">capjamesg's IndieAuth Endpoint</a></p>
+        {% if session.get("logged_in") == True %}
+        <ul>
+          <li><a href="/issued">Issued Tokens</a></li>
+          <li><a href="/logout">Logout</a></li>
+        </ul>
+        {% endif %}
       </nav>
       <div id="main">
         {% block content %}

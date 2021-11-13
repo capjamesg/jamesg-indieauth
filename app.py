@@ -1,6 +1,6 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session
 from .helpers import verify_code
-from .config import SECRET_KEY
+from .config import AUTH_SERVER_URL, SECRET_KEY
 import jwt
 import string
 import random
@@ -10,6 +10,7 @@ import time
 import sqlite3
 import hashlib
 import base64
+import datetime
 
 app = Blueprint('app', __name__)
 
@@ -195,6 +196,21 @@ def authorization_endpoint():
 
     return jsonify({"me": decoded_code["me"]})
 
+@app.route("/issued")
+def view_issued_tokens():
+    if not session.get("logged_in"):
+        return redirect("/login")
+
+    connection = sqlite3.connect("tokens.db")
+    with connection:
+        cursor = connection.cursor()
+
+        issued_tokens = cursor.execute("SELECT * FROM issued_tokens").fetchall()
+
+    return render_template("issued.html",
+        title="Issued tokens",
+        issued_tokens=issued_tokens)
+
 @app.route("/generate", methods=["POST"])
 def generate_key():
     if session.get("logged_in") != True:
@@ -229,7 +245,38 @@ def generate_key():
         algorithm="HS256"
     )
 
+    connection = sqlite3.connect("tokens.db")
+
+    with connection:
+        cursor = connection.cursor()
+
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        cursor.execute("INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?)", (encoded_code, me, now, client_id, int(time.time()) + 3600, ))
+
     return redirect(redirect_uri.strip("/") + "?code={}&state={}".format(encoded_code, state))
+
+@app.route("/revoke")
+def revoke_from_user_interface():
+    token_to_revoke = request.args.get("token")
+
+    if not token_to_revoke:
+        return jsonify({"error": "invalid_request"})
+
+    connection = sqlite3.connect("tokens.db")
+
+    with connection:
+        cursor = connection.cursor()
+        cursor.execute("DELETE FROM issued_tokens WHERE token = ?", (token_to_revoke,))
+
+    r = requests.post(AUTH_SERVER_URL.strip("/") + "/token", data={"token": token_to_revoke, "action": "revoke"})
+
+    if r.status_code == 200:
+        flash("Your token was revoked")
+    else:
+        flash("There was an error revoking your token")
+
+    return redirect("/issued")
 
 @app.route("/token", methods=["GET", "POST"])
 def token_endpoint():
@@ -353,7 +400,7 @@ def token_endpoint():
         SECRET_KEY,
         algorithm="HS256"
     )
-    
+
     return jsonify({"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me})
 
 @app.route("/.well-known/oauth-authorization-server")

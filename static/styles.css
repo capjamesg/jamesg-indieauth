@@ -18,6 +18,13 @@ p, code, li {
 	font-size: 1.0625rem;
 	word-wrap: break-word;
   }
+td {
+    padding: 10px;
+}
+table {
+	border: 1px solid lightgrey;
+	border-radius: 10px;
+}
 .message {
 	background-color: white;
 	border: 2px solid lightgrey;
