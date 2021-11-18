@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}Micropub Endpoint{% endif %}</title>
+    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}IndieAuth Endpoint{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />

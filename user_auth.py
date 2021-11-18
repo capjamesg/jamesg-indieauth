@@ -10,10 +10,7 @@ user_auth = Blueprint('user_auth', __name__)
 def login():
     if request.args.get("r") and request.args.get("r").startswith(AUTH_SERVER_URL):
         # this approach is used because args.get separates any ? in the r= query string
-        url = urllib.parse.urlparse(request.url)
-        
-        if url:
-            session["user_redirect"] = urllib.parse.parse_qs(url.query)["r"][0]
+        session["user_redirect"] = request.args.get("r")
 
     if session.get("rel_me_check"):
         return redirect("/rel")
@@ -42,6 +39,9 @@ def rel_login_stage():
         return redirect("/login")
 
     if session.get("me"):
+        if session.get("user_redirect"):
+            return redirect(session.get("user_redirect"))
+
         return redirect("/")
 
     rel_request = requests.get(session.get("rel_me_check"))

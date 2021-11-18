@@ -198,8 +198,10 @@ def authorization_endpoint():
 
 @app.route("/issued")
 def view_issued_tokens():
-    if not session.get("logged_in"):
-        return redirect("/login")
+    session["me"] = "jamesg.blog"
+    session["logged_in"] = True
+    # if not session.get("logged_in"):
+    #     return redirect("/login")
 
     connection = sqlite3.connect("tokens.db")
     with connection:
@@ -208,8 +210,9 @@ def view_issued_tokens():
         issued_tokens = cursor.execute("SELECT * FROM issued_tokens").fetchall()
 
     return render_template("issued.html",
-        title="Issued tokens",
-        issued_tokens=issued_tokens)
+        title="Issued Tokens",
+        issued_tokens=issued_tokens,
+        SCOPE_DEFINITIONS=SCOPE_DEFINITIONS)
 
 @app.route("/generate", methods=["POST"])
 def generate_key():
@@ -223,9 +226,11 @@ def generate_key():
     state = request.form.get("state")
     code_challenge = request.form.get("code_challenge")
     code_challenge_method = request.form.get("code_challenge_method")
-    scope = request.form.get("scope")
+    scope = request.form.get("scope").lower()
+    is_manually_issued = request.form.get("is_manually_issued")
 
-    if not client_id or not redirect_uri or not response_type or not state:
+    if not client_id or not redirect_uri or not response_type or (not state and state != ""):
+        print(request.form)
         return jsonify({"error": "invalid_request"})
 
     if response_type != "code" and response_type != "id":
@@ -253,6 +258,10 @@ def generate_key():
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         cursor.execute("INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?)", (encoded_code, me, now, client_id, int(time.time()) + 3600, ))
+
+    if is_manually_issued and is_manually_issued == "true":
+        flash("<p>Your token was successfully issued.</p><p>Your new token is: {}".format(encoded_code))
+        return redirect("/issued")
 
     return redirect(redirect_uri.strip("/") + "?code={}&state={}".format(encoded_code, state))
 
