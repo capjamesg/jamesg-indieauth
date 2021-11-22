@@ -198,10 +198,8 @@ def authorization_endpoint():
 
 @app.route("/issued")
 def view_issued_tokens():
-    session["me"] = "jamesg.blog"
-    session["logged_in"] = True
-    # if not session.get("logged_in"):
-    #     return redirect("/login")
+    if not session.get("logged_in"):
+        return redirect("/login")
 
     connection = sqlite3.connect("tokens.db")
     with connection:

@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+    #main {
+        max-width: none;
+    }
+</style>
 <h1>Issued Tokens</h1>
 <section>
     {% with messages = get_flashed_messages() %}
@@ -27,11 +32,11 @@
             <tbody>
                 {% for token in issued_tokens %}
                 <tr>
-                    <td>...<code>{{ token[0][-5:] }}</code></td>
-                    <td>{{ token[1] }}</td>
-                    <td>{{ token[2] }}</td>
-                    <td>{{ token[3] }}</td>
-                    <td>{{ token[4] }}</td>
+                    <td data-label="Token">...<code>{{ token[0][-5:] }}</code></td>
+                    <td data-label="URL Authorized">{{ token[1] }}</td>
+                    <td data-label="Issued On">{{ token[2] }}</td>
+                    <td data-label="Issued To">{{ token[3] }}</td>
+                    <td data-label="Expires">{{ token[4] }}</td>
                     <td><a href="/revoke?token={{ token[0] }}">Revoke</a></td>
                 </tr>
                 {% endfor %}
