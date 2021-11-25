@@ -1,6 +1,6 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session
 from .helpers import verify_code
-from .config import AUTH_SERVER_URL, SECRET_KEY
+from .config import AUTH_SERVER_URL, SECRET_KEY, WEBHOOK_SERVER, WEBHOOK_URL, WEBHOOK_ACCESS_TOKEN
 import jwt
 import string
 import random
@@ -260,6 +260,18 @@ def generate_key():
     if is_manually_issued and is_manually_issued == "true":
         flash("<p>Your token was successfully issued.</p><p>Your new token is: {}".format(encoded_code))
         return redirect("/issued")
+
+    if WEBHOOK_SERVER == True:
+        data = {
+            "message": "{} has issued an access token to {}".format(me, client_id)
+        }
+
+
+        headers = {
+            "Authorization": "Bearer {}".format(WEBHOOK_ACCESS_TOKEN)
+        }
+
+        requests.post(WEBHOOK_URL, data=data, headers=headers)
 
     return redirect(redirect_uri.strip("/") + "?code={}&state={}".format(encoded_code, state))
 
