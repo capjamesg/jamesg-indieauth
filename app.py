@@ -194,7 +194,7 @@ def authorization_endpoint():
     if message != None:
         return jsonify({"error": message})
 
-    return jsonify({"me": decoded_code["me"]})
+    return jsonify({"me": decoded_code["me"].strip("/") + "/"})
 
 @app.route("/issued")
 def view_issued_tokens():
@@ -228,7 +228,6 @@ def generate_key():
     is_manually_issued = request.form.get("is_manually_issued")
 
     if not client_id or not redirect_uri or not response_type or (not state and state != ""):
-        print(request.form)
         return jsonify({"error": "invalid_request"})
 
     if response_type != "code" and response_type != "id":
@@ -297,6 +296,135 @@ def revoke_from_user_interface():
 
     return redirect("/issued")
 
+# @app.route("/ticket/create", methods=["POST"])
+# def create_short_lived_ticket():
+#     feed_url = request.form.get("feed_url")
+#     subject = request.form.get("subject")
+#     ticket = random.randint(1230242, 420490294)
+
+#     if not feed_url:
+#         flash("Please specify a URL to which you want to grant access.")
+#         return redirect("/issued")
+
+#     # discover metadata endpoint
+
+#     r = requests.get(feed_url, allow_redirects=False)
+
+#     soup = BeautifulSoup(r.text, "html.parser")
+
+#     http_link_headers = r.headers.get("link")
+
+#     metadata_endpoint = None
+#     metadata_endpoint_found = False
+
+#     if http_link_headers:
+#         parsed_link_headers = requests.utils.parse_header_links(http_link_headers.rstrip('>').replace('>,<', ',<'))
+#     else:
+#         parsed_link_headers = []
+
+#     metadata_endpoint_in_header = [h for h in parsed_link_headers if h['rel'] == 'indieweb-meta']
+
+#     if len(metadata_endpoint_in_header) > 0:
+#         metadata_endpoint = metadata_endpoint_in_header[0]['url']
+#         metadata_endpoint_found = True
+#     else:
+#         metadata_endpoint_search = soup.find("link", rel="indieweb-meta")
+
+#         if metadata_endpoint_search:
+#             metadata_endpoint = metadata_endpoint_search["href"]
+#             metadata_endpoint_found = True
+
+#     if metadata_endpoint_found == False:
+#         flash("An IndieAuth metadata endpoint could not be found on your website.")
+#         return redirect("/login")
+
+#     # get the authorization endpoint
+
+#     metadata_endpoint_request = requests.get(metadata_endpoint)
+
+#     if metadata_endpoint_request.status_code != 200:
+#         flash("An IndieAuth metadata endpoint could not be found on your website.")
+#         return redirect("/login")
+
+#     metadata_endpoint_json = metadata_endpoint_request.json()
+
+#     ticket_endpoint = metadata_endpoint_json.get("ticket_endpoint")
+
+#     if ticket_endpoint == None or ticket_endpoint == "":
+#         flash("An IndieAuth ticket endpoint could not be found on your website.")
+#         return redirect("/login")
+
+#     data = {
+#         "ticket": ticket,
+#         "resource": feed_url,
+#         "subject": subject
+#     }
+
+#     headers = {
+#         "Content-Type": "application/x-www-form-urlencoded"
+#     }
+
+#     requests.post(ticket_endpoint, data=data, headers=headers)
+
+#     flash("Your short-lived ticket has been created and sent.")
+
+#     return redirect("/issued")
+
+# @app.route("/ticket", methods=["POST"])
+# def ticket_endpoint():
+#     if not request.form.get("ticket"):
+#         return jsonify({"error": "invalid_request"})
+
+#     resource = request.form.get("resource")
+
+#     r = requests.get(resource, allow_redirects=False)
+
+#     soup = BeautifulSoup(r.text, "html.parser")
+
+#     http_link_headers = r.headers.get("link")
+
+#     token_endpoint = None
+#     token_endpoint_found = False
+
+#     if http_link_headers:
+#         parsed_link_headers = requests.utils.parse_header_links(http_link_headers.rstrip('>').replace('>,<', ',<'))
+#     else:
+#         parsed_link_headers = []
+
+#     token_endpoint_in_header = [h for h in parsed_link_headers if h['rel'] == 'token_endpoint']
+
+#     if len(token_endpoint_in_header) > 0:
+#         token_endpoint = token_endpoint_in_header[0]['url']
+#         token_endpoint_found = True
+#     else:
+#         token_endpoint_search = soup.find("link", rel="token_endpoint")
+
+#         if token_endpoint_search:
+#             token_endpoint = token_endpoint_search["href"]
+#             token_endpoint_found = True
+
+#     if token_endpoint_found == False:
+#         return jsonify({"error": "invalid_request"})
+        
+#     data = {
+#         "grant_type": "ticket",
+#         "ticket": request.form.get("ticket")
+#     }
+
+#     headers = {
+#         "Content-Type": "application/x-www-form-urlencoded",
+#         "Accept": "application/json"
+#     }
+
+#     r = requests.post(token_endpoint, data=data, headers=headers)
+
+#     if r.status_code != 200:
+#         return jsonify({"error": "invalid_request"})
+
+#     access_token = r.json().get("access_token")
+
+#     return jsonify({"token": access_token})
+
 @app.route("/token", methods=["GET", "POST"])
 def token_endpoint():
     if request.method == "GET":
@@ -328,6 +456,12 @@ def token_endpoint():
         me = decoded_authorization_code["me"]
         client_id = decoded_authorization_code["client_id"]
         scope = decoded_authorization_code["scope"]
+
+        resource = decoded_authorization_code["resource"]
+
+        if resource != "all":
+            if request.path not in resource:
+                return jsonify({"error": "invalid_request"})
 
         if "profile" in scope:
             me_profile = requests.get(me)
@@ -365,9 +499,9 @@ def token_endpoint():
                 else:
                     profile = None
 
-                return jsonify({"me": me, "client_id": client_id, "scope": scope, "profile": profile})
+                return jsonify({"me": me.strip("/") + "/", "client_id": client_id, "scope": scope, "profile": profile})
 
-        return jsonify({"me": me, "client_id": client_id, "scope": scope})
+        return jsonify({"me": me.strip("/") + "/", "client_id": client_id, "scope": scope})
 
     action = request.form.get("action")
 
@@ -414,8 +548,23 @@ def token_endpoint():
     scope = decoded_code["scope"]
     me = decoded_code["me"]
 
+    if grant_type == "authorization_code":
+        access = "all"
+    else:
+        db = sqlite3.connect("tokens.db")
+
+        with db:
+            cursor = db.cursor()
+
+            ticket = cursor.execute("SELECT * FROM tickets WHERE token = ?", (code,)).fetchone()
+
+            if not ticket:
+                return jsonify({"error": "invalid_ticket"}), 400
+
+            access = ticket[1]
+
     access_token = jwt.encode(
-        {"me": me, "expires": int(time.time()) + 360000, "client_id": client_id, "redirect_uri": redirect_uri, "scope": scope},
+        {"me": me, "expires": int(time.time()) + 360000, "client_id": client_id, "redirect_uri": redirect_uri, "scope": scope, "resource": access},
         SECRET_KEY,
         algorithm="HS256"
     )
