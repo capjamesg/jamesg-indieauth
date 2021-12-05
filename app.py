@@ -254,6 +254,13 @@ def generate_key():
 
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        already_issued_to_client = cursor.execute("SELECT * FROM issued_tokens WHERE client_id = ?", (client_id,)).fetchall()
+
+        # delete tokens that have already been issued to the client
+        # ensures that more than one token cannot be active per client
+        if len(already_issued_to_client) > 0:
+            cursor.execute("DELETE FROM issued_tokens WHERE client_id = ?", (client_id,))
+
         cursor.execute("INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?)", (encoded_code, me, now, client_id, int(time.time()) + 3600, ))
 
     if is_manually_issued and is_manually_issued == "true":
@@ -285,7 +292,10 @@ def revoke_from_user_interface():
 
     with connection:
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM issued_tokens WHERE token = ?", (token_to_revoke,))
+        if token_to_revoke == "all":
+            cursor.execute("DELETE FROM issued_tokens")
+        else:
+            cursor.execute("DELETE FROM issued_tokens WHERE token = ?", (token_to_revoke,))
 
     r = requests.post(AUTH_SERVER_URL.strip("/") + "/token", data={"token": token_to_revoke, "action": "revoke"})
 
