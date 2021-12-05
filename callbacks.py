@@ -65,6 +65,7 @@ def github_callback():
 
     if session.get("user_redirect"):
         redirect_uri = session.get("user_redirect")
+        session.pop("user_redirect")
         return redirect(redirect_uri)
 
     return redirect("/")
@@ -97,6 +98,7 @@ def twitter_callback():
 
         if session.get("user_redirect"):
             redirect_uri = session.get("user_redirect")
+            session.pop("user_redirect")
             return redirect(redirect_uri)
 
         return redirect("/")

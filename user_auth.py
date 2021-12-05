@@ -8,7 +8,8 @@ user_auth = Blueprint('user_auth', __name__)
 
 @user_auth.route("/login", methods=["GET", "POST"])
 def login():
-    if request.args.get("r") and request.args.get("r").startswith(AUTH_SERVER_URL):
+    # only allow redirects to *.ME resources (i.e. wiki.jamesg.blog, if ME = jamesg.blog)
+    if request.args.get("r") and request.args.r.split("/")[2].endswith(ME.strip("/").replace("https://", "").replace("http://", "")):
         # this approach is used because args.get separates any ? in the r= query string
         session["user_redirect"] = request.args.get("r")
 
