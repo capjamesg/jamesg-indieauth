@@ -21,7 +21,7 @@ def twitter_auth():
 def github_auth():
     state = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(32))
     session["github_state"] = state
-    return redirect("https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&state={}".format(GITHUB_CLIENT_ID, GITHUB_OAUTH_REDIRECT, state))
+    return redirect(f"https://github.com/login/oauth/authorize?client_id={GITHUB_CLIENT_ID}&redirect_uri={GITHUB_OAUTH_REDIRECT}&state={state}")
 
 @callbacks.route("/auth/github/callback")
 def github_callback():
@@ -37,13 +37,13 @@ def github_callback():
         "Accept": "application/json"
     }
 
-    r = requests.post("https://github.com/login/oauth/access_token?client_id={}&client_secret={}&code={}&redirect_uri={}".format(GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, access_token, GITHUB_OAUTH_REDIRECT), headers=headers)
+    r = requests.post(f"https://github.com/login/oauth/access_token?client_id={GITHUB_CLIENT_ID}&client_secret={GITHUB_CLIENT_SECRET}&code={access_token}&redirect_uri={GITHUB_OAUTH_REDIRECT}", headers=headers)
 
     if not r.json().get("access_token"):
         flash("There was an error authenticating with GitHub.")
         return redirect("/login")
 
-    user_request = requests.get("https://api.github.com/user", headers={"Authorization": "token {}".format(r.json()["access_token"])})
+    user_request = requests.get("https://api.github.com/user", headers={"Authorization": f"token {r.json()['access_token']}"})
 
     if user_request.status_code != 200:
         flash("There was an error authenticating with GitHub.")
@@ -111,10 +111,10 @@ def passwordless_auth():
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": "SSWS {}".format(OKTA_ACCESS_TOKEN)
+        "Authorization": f"SSWS {OKTA_ACCESS_TOKEN}"
     }
 
-    r = requests.post("{}/api/v1/users/{}/factors/{}/verify".format(OKTA_DOMAIN, OKTA_USER_ID, OKTA_FACTOR_ID), headers=headers)
+    r = requests.post(f"{OKTA_DOMAIN}/api/v1/users/{OKTA_USER_ID}/factors/{OKTA_FACTOR_ID}/verify", headers=headers)
 
     if r.status_code != 201:
         flash("There was an error authenticating with Okta.")
@@ -132,7 +132,7 @@ def passwordless_check():
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
-        "Authorization": "SSWS {}".format(OKTA_ACCESS_TOKEN)
+        "Authorization": f"SSWS {OKTA_ACCESS_TOKEN}"
     }
 
     r = requests.get(session.get("transaction_id"), headers=headers)

@@ -1,7 +1,6 @@
 from flask import request, Blueprint, render_template, redirect, flash, session
-from .config import ME, AUTH_SERVER_URL
+from .config import ME
 import requests
-import urllib
 import mf2py
 
 user_auth = Blueprint('user_auth', __name__)
@@ -9,7 +8,7 @@ user_auth = Blueprint('user_auth', __name__)
 @user_auth.route("/login", methods=["GET", "POST"])
 def login():
     # only allow redirects to *.ME resources (i.e. wiki.jamesg.blog, if ME = jamesg.blog)
-    if request.args.get("r") and request.args.r.split("/")[2].endswith(ME.strip("/").replace("https://", "").replace("http://", "")):
+    if request.args.get("r") and request.args.get("r").split("/")[2].endswith(ME.strip("/").replace("https://", "").replace("http://", "")):
         # this approach is used because args.get separates any ? in the r= query string
         session["user_redirect"] = request.args.get("r")
 

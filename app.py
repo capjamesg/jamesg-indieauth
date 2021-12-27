@@ -43,11 +43,11 @@ def authorization_endpoint():
         if request.args.get("me") and session.get("me") and request.args.get("me").strip("/").replace("https://", "").replace("http://", "") != session.get("me").strip("/").replace("https://", "").replace("http://", ""):
             session.pop("logged_in", None)
             session.pop("me", None)
-            flash("{} is requesting you to sign in as {}. Please sign in as {}.".format(request.args.get("client_id"), request.args.get("me"), request.args.get("me")))
-            return redirect("/login?r={}" .format(request.url))
+            flash(f"{request.args.get('client_id')} is requesting you to sign in as {request.args.get('me')}. Please sign in as {request.args.get('me')}.")
+            return redirect(f"/login?r={request.url}")
 
         if session.get("logged_in") != True:
-            return redirect("/login?r={}" .format(request.url))
+            return redirect(f"/login?r={request.url}")
 
         client_id = request.args.get("client_id")
         redirect_uri = request.args.get("redirect_uri")
@@ -159,7 +159,7 @@ def authorization_endpoint():
             code_challenge_method=code_challenge_method,
             h_app_item=h_app_item,
             SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
-            title="Authenticate to {}".format(client_id.replace("https://", "").replace("http://", "").strip()))
+            title=f"Authenticate to {client_id.replace('https://', '').replace('http://', '').strip()}")
 
     grant_type = request.form.get("grant_type")
     code = request.form.get("code")
@@ -215,7 +215,7 @@ def view_issued_tokens():
 @app.route("/generate", methods=["POST"])
 def generate_key():
     if session.get("logged_in") != True:
-        return redirect("/login?r={}" .format(request.url))
+        return redirect(f"/login?r={request.url}")
 
     me = request.form.get("me")
     client_id = request.form.get("client_id")
@@ -236,8 +236,8 @@ def generate_key():
     final_scope = ""
 
     for item in scope.split(" "):
-        if request.form.get("scope_{}".format(item)):
-            final_scope += "{} ".format(item)
+        if request.form.get(f"scope_{item}"):
+            final_scope += f"{item} "
 
     random_string = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
@@ -264,22 +264,22 @@ def generate_key():
         cursor.execute("INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?)", (encoded_code, me, now, client_id, int(time.time()) + 3600, ))
 
     if is_manually_issued and is_manually_issued == "true":
-        flash("<p>Your token was successfully issued.</p><p>Your new token is: {}".format(encoded_code))
+        flash(f"<p>Your token was successfully issued.</p><p>Your new token is: {encoded_code}")
         return redirect("/issued")
 
     if WEBHOOK_SERVER == True:
         data = {
-            "message": "{} has issued an access token to {}".format(me, client_id)
+            "message": f"{me} has issued an access token to {client_id}"
         }
 
 
         headers = {
-            "Authorization": "Bearer {}".format(WEBHOOK_ACCESS_TOKEN)
+            "Authorization": f"Bearer {WEBHOOK_ACCESS_TOKEN}"
         }
 
         requests.post(WEBHOOK_URL, data=data, headers=headers)
 
-    return redirect(redirect_uri.strip("/") + "?code={}&state={}".format(encoded_code, state))
+    return redirect(redirect_uri.strip("/") + f"?code={encoded_code}&state={state}")
 
 @app.route("/revoke")
 def revoke_from_user_interface():
@@ -574,12 +574,26 @@ def token_endpoint():
             access = ticket[1]
 
     access_token = jwt.encode(
-        {"me": me, "expires": int(time.time()) + 360000, "client_id": client_id, "redirect_uri": redirect_uri, "scope": scope, "resource": access},
+        {
+            "me": me,
+            "expires": int(time.time()) + 360000,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": scope,
+            "resource": access
+        },
         SECRET_KEY,
         algorithm="HS256"
     )
 
-    return jsonify({"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me})
+    return jsonify(
+        {
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "scope": scope,
+            "me": me
+        }
+    )
 
 @app.route("/.well-known/oauth-authorization-server")
 def oauth_authorization_server():
