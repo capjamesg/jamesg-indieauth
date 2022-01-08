@@ -35,6 +35,13 @@ SCOPE_DEFINITIONS = {
 def index():
     return render_template("index.html")
 
+@app.route("/logout")
+def logout():
+    session.pop("logged_in", None)
+    session.pop("me", None)
+
+    return redirect("/")
+
 @app.route("/auth", methods=['GET', 'POST'])
 def authorization_endpoint():
     if request.method == "GET":
