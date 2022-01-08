@@ -91,7 +91,7 @@ def authorization_endpoint():
                         if url == redirect_uri:
                             confirmed_redirect_uri = True
 
-            link_tags = BeautifulSoup(fetch_client.text, "html.parser").find_all("link")
+            link_tags = BeautifulSoup(fetch_client.text, "lxml").find_all("link")
 
             for link in link_tags:
                 if link.get("rel") == "redirect_uri":
@@ -107,7 +107,7 @@ def authorization_endpoint():
                 return jsonify({"error": "invalid_request"})
 
         if client_id_app.status_code == 200:
-            h_x_app = BeautifulSoup(client_id_app.text, "html.parser")
+            h_x_app = BeautifulSoup(client_id_app.text, "lxml")
             h_app_item = h_x_app.select(".h-app")
 
             if not h_app_item:
@@ -242,7 +242,16 @@ def generate_key():
     random_string = "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
 
     encoded_code = jwt.encode(
-        {"me": me, "random_string": random_string, "expires": int(time.time()) + 3600, "client_id": client_id, "redirect_uri": redirect_uri, "scope": final_scope, "code_challenge": code_challenge, "code_challenge_method": code_challenge_method},
+        {
+            "me": me,
+            "random_string": random_string,
+            "expires": int(time.time()) + 3600,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": final_scope,
+            "code_challenge": code_challenge,
+            "code_challenge_method": code_challenge_method
+        },
         SECRET_KEY,
         algorithm="HS256"
     )
