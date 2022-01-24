@@ -1,6 +1,6 @@
 from flask import request, Blueprint, jsonify, render_template, redirect, flash, session
-from .helpers import verify_code
-from .config import AUTH_SERVER_URL, SECRET_KEY, WEBHOOK_SERVER, WEBHOOK_URL, WEBHOOK_ACCESS_TOKEN
+from helpers import verify_code
+from config import AUTH_SERVER_URL, SECRET_KEY, WEBHOOK_SERVER, WEBHOOK_URL, WEBHOOK_ACCESS_TOKEN, API_KEY
 import jwt
 import string
 import random
@@ -205,16 +205,25 @@ def authorization_endpoint():
 
 @app.route("/issued")
 def view_issued_tokens():
-    if not session.get("logged_in"):
+    is_feed_view = request.args.get("feed")
+    authorization_token = request.args.get("authorization")
+
+    if not session.get("logged_in") and authorization_token != API_KEY:
         return redirect("/login")
 
     connection = sqlite3.connect("tokens.db")
+
     with connection:
         cursor = connection.cursor()
 
         issued_tokens = cursor.execute("SELECT * FROM issued_tokens").fetchall()
 
-    return render_template("issued.html",
+    if is_feed_view == "true":
+        template = "issued_feed.html"
+    else:
+        template = "issued.html"
+
+    return render_template(template,
         title="Issued Tokens",
         issued_tokens=issued_tokens,
         SCOPE_DEFINITIONS=SCOPE_DEFINITIONS)

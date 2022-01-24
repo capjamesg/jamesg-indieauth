@@ -1,6 +1,6 @@
 import time
 import requests
-from .config import ME
+from config import ME
 import mf2py
 
 def verify_code(client_id, redirect_uri, decoded_code):

@@ -1,5 +1,5 @@
 from flask import Flask, render_template
-from .config import SECRET_KEY, SENTRY_DSN, SENTRY_SERVER_NAME
+from config import SECRET_KEY, SENTRY_DSN, SENTRY_SERVER_NAME
 import os
 
 # set up sentry for error handling
@@ -23,15 +23,15 @@ def create_app():
     app.secret_key = SECRET_KEY
 
     # blueprint for non-auth parts of app
-    from .app import app as main_blueprint
+    from app import app as main_blueprint
 
     app.register_blueprint(main_blueprint)
 
-    from .callbacks import callbacks as callbacks_blueprint
+    from callbacks import callbacks as callbacks_blueprint
 
     app.register_blueprint(callbacks_blueprint)
 
-    from .user_auth import user_auth as user_auth_blueprint
+    from user_auth import user_auth as user_auth_blueprint
 
     app.register_blueprint(user_auth_blueprint)
 

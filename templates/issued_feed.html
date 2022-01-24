@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Issued Tokens Feed</h1>
+<section>
+    {% with messages = get_flashed_messages() %}
+       {% if messages %}
+          <ul class="message">
+          {% for message in messages %}
+             <li>{{ message }}</li>
+          {% endfor %}
+          </ul>
+       {% endif %}
+    {% endwith %}
+    <p>View the tokens you have issued from this endpoint.</p>
+    {% if issued_tokens %}
+        <ul class="h-feed">
+        {% for token in issued_tokens %}
+            <li class="h-entry">
+                <p class="p-name p-summary">{{ token[1] }} logged in to {{ token[3] }} at {{ token[2] }}.</p>
+            </li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have not issued any tokens yet.</p>
+    {% endif %}
+</section>
+{% endblock %}
