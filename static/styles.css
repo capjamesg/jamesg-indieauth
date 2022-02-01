@@ -59,8 +59,11 @@ button, .random_button {
 }
 nav, footer ul {
 	display: flex;
-	border-top: 5px #FFA500 dashed;
-	border-bottom: 5px #FFA500 dashed;
+	box-shadow: 2px 2px lightgrey;
+	background: white;
+	padding-left: 10px;
+	padding-right: 10px;
+	border: 1px solid lightgrey;
 }
 nav ul li {
 	display: inline-block;
@@ -72,6 +75,26 @@ footer ul {
 	flex-wrap: wrap;
 	list-style-type: none;
 }
+/* skip link hiding code from https://www.a11ymatters.com/pattern/skip-link/ */
+.accessibility_label_top {
+	position: fixed;
+	top: -200px;
+  }
+  .accessibility_label_top:focus {
+	top: 0;
+	left: 50%;
+	padding: 10px;
+  }
+  .accessibility_label {
+	position: fixed;
+	bottom: -200px;
+  }
+  .accessibility_label:focus {
+	bottom: 0 !important;
+	left: 50%;
+	padding: 10px;
+	z-index: 1;
+  }
 input[type="radio"] {
 	min-width: auto !important;
 	width: 2em;
@@ -181,6 +204,10 @@ details {
 }
 summary {
 	padding-top: 5px;
+}
+.feed_list {
+	padding: 0;
+	list-style-type: none;
 }
 details > p {
 	margin-bottom: 0px;
@@ -364,9 +391,9 @@ section li {
 	padding: 20px;
 	padding-left: 50px;
 	padding-right: 50px;
-	border-radius: 10px;
 	margin: auto;
-	max-width: 35em;
+	box-shadow: 2px 2px lightblue;
+	margin-bottom: 10px;
 }
 .error {
 	border: 2px solid red;

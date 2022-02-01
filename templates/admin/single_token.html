@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Issued Token Information</h1>
+<section>
+    {% with messages = get_flashed_messages() %}
+       {% if messages %}
+          <ul class="message">
+          {% for message in messages %}
+             <li>{{ message }}</li>
+          {% endfor %}
+          </ul>
+       {% endif %}
+    {% endwith %}
+    {% if token_app %}
+        <h2>About The Provider</h2>
+        <img src="{{ token_app.icon }}" alt="{{ token.issuer }} icon" />
+        <p>This token was issued by <a href="{{ token_app.name }}">{{ token.issuer }}</a>.</p>
+        <p>{{ token_app.description }}</p>
+    {% endif %}
+    <h2>About This Token</h2>
+    <dl>
+        <dt>Issued To:</dt>
+        <dd>{{ token[1] }}</dd>
+        <dt>Issued At:</dt>
+        <dd>{{ token[2] }}</dd>
+        <dt>Issued From:</dt>
+        <dd>{{ token[3] }}</dd>
+    </dl>
+</section>
+{% endblock %}

@@ -1,14 +1,18 @@
-from flask import request, Blueprint, render_template, redirect, flash, session
-from config import ME
-import requests
 import mf2py
+import requests
+from flask import Blueprint, flash, redirect, render_template, request, session
 
-user_auth = Blueprint('user_auth', __name__)
+from config import ME
+
+user_auth = Blueprint("user_auth", __name__)
+
 
 @user_auth.route("/login", methods=["GET", "POST"])
 def login():
     # only allow redirects to *.ME resources (i.e. wiki.jamesg.blog, if ME = jamesg.blog)
-    if request.args.get("r") and request.args.get("r").split("/")[2].endswith(ME.strip("/").replace("https://", "").replace("http://", "")):
+    if request.args.get("r") and request.args.get("r").split("/")[2].endswith(
+        ME.strip("/").replace("https://", "").replace("http://", "")
+    ):
         # this approach is used because args.get separates any ? in the r= query string
         session["user_redirect"] = request.args.get("r")
 
@@ -24,14 +28,22 @@ def login():
     if request.method == "POST":
         domain_name = request.form.get("domain")
 
-        if domain_name.strip("/").replace("https://", "").replace("http://", "") != ME.strip("/").replace("https://", "").replace("http://", ""):
+        if domain_name.strip("/").replace("https://", "").replace(
+            "http://", ""
+        ) != ME.strip("/").replace("https://", "").replace("http://", ""):
             flash("Only approved domains can access this service.")
-            return render_template("ask_for_domain.html", title="Login to capjamesg's IndieAuth Server")
+            return render_template(
+                "authentication_flow/ask_for_domain.html",
+                title="Login to capjamesg's IndieAuth Server",
+            )
 
         session["rel_me_check"] = domain_name
 
         return redirect("/rel")
-    return render_template("ask_for_domain.html", title="Login to capjamesg's IndieAuth Server")
+    return render_template(
+        "ask_for_domain.html", title="Login to capjamesg's IndieAuth Server"
+    )
+
 
 @user_auth.route("/rel")
 def rel_login_stage():
@@ -53,4 +65,9 @@ def rel_login_stage():
     else:
         rel_me_links = []
 
-    return render_template("login.html", rel_me_links=rel_me_links, me=ME, title="Authenticate with a rel=me link")
+    return render_template(
+        "authentication_flow/login.html",
+        rel_me_links=rel_me_links,
+        me=ME,
+        title="Authenticate with a rel=me link",
+    )

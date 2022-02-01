@@ -1,7 +1,10 @@
 import time
-import requests
-from config import ME
+
 import mf2py
+import requests
+
+from config import ME
+
 
 def verify_code(client_id, redirect_uri, decoded_code):
     if int(time.time()) > decoded_code["expires"]:
@@ -14,6 +17,7 @@ def verify_code(client_id, redirect_uri, decoded_code):
         return "invalid_grant"
 
     return None
+
 
 def get_rels(me_url):
     home = requests.get(ME)

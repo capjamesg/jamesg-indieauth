@@ -1,7 +1,24 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Welcome to capjamesg's IndieAuth Endpoint</h1>
+<h1>Welcome to SnackAuth</h1>
 <section>
-    <p>This endpoint is used by capjamesg for authentication.</p>
+    <h2>What is SnackAuth?</h2>
+    <p>SnackAuth is a service that lets you authenticate to a website with your domain name.</p>
+    <p>
+        SnackAuth works using <a href="https://indieauth.com">IndieAuth</a>. To sign in, you must first add rel=me links to your site. Then,
+        SnackAuth will present you with authentication options based on your rel=me links.
+    </p>
+    <p>
+        Once you have signed in with an authentication option, you can authorize a service to sign you
+        in as your domain name.
+    </p>
+    <p>
+        SnackAuth is not currently open for registrations.
+    </p>
+    <p>
+        If you are looking for a hosted IndieAuth solution, check out the
+        "<a href="https://indieweb.org/IndieAuth#Set_up_using_IndieAuth.com">Set up using IndieAuth</a>" tutorial
+        on the IndieWeb wiki.
+    </p>
 </section>
 {% endblock %}

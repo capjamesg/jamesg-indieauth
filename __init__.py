@@ -1,6 +1,8 @@
-from flask import Flask, render_template
-from config import SECRET_KEY, SENTRY_DSN, SENTRY_SERVER_NAME
 import os
+
+from flask import Flask, render_template
+
+from config import SECRET_KEY, SENTRY_DSN, SENTRY_SERVER_NAME
 
 # set up sentry for error handling
 if SENTRY_DSN != "":
@@ -11,8 +13,9 @@ if SENTRY_DSN != "":
         dsn=SENTRY_DSN,
         integrations=[FlaskIntegration()],
         traces_sample_rate=1.0,
-        server_name=SENTRY_SERVER_NAME
+        server_name=SENTRY_SERVER_NAME,
     )
+
 
 def create_app():
     app = Flask(__name__)
@@ -48,6 +51,7 @@ def create_app():
         return render_template("error.html", title="Server error", error=500), 500
 
     return app
+
 
 if __name__ == "__main__":
     app = create_app()

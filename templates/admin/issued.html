@@ -21,22 +21,19 @@
         <table>
             <thead>
                 <tr>
-                    <th>Token</th>
                     <th>URL Authorized</th>
                     <th>Issued On</th>
                     <th>Issued To</th>
-                    <th>Expires</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for token in issued_tokens %}
                 <tr>
-                    <td data-label="Token">...<code>{{ token[0][-5:] }}</code></td>
-                    <td data-label="URL Authorized">{{ token[1] }}</td>
-                    <td data-label="Issued On">{{ token[2] }}</td>
-                    <td data-label="Issued To">{{ token[3] }}</td>
-                    <td data-label="Expires">{{ token[4] }}</td>
+                    <td data-label="User Login">{{ token[1] }}</td>
+                    <td data-label="Site You Logged Into">{{ token[3] }}</td>
+                    <td data-label="Time Token Was Issued">{{ token[2] }}</td>
+                    <td><a href="/issued?token={{ token[0] }}">See Action</a></td>
                     <td><a href="/revoke?token={{ token[0] }}">Revoke</a></td>
                 </tr>
                 {% endfor %}

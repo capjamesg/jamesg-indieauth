@@ -13,7 +13,8 @@
     {% endwith %}
     <p>View the tokens you have issued from this endpoint.</p>
     {% if issued_tokens %}
-        <ul class="h-feed">
+        <hr>
+        <ul class="h-feed feed_list">
         {% for token in issued_tokens %}
             <li class="h-entry">
                 <p class="p-name p-summary">{{ token[1] }} logged in to {{ token[3] }} at {{ token[2] }}.</p>

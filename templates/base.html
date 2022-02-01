@@ -13,13 +13,17 @@
   </head>
   <body>
     <main>
-      <a href="#main" class="accessibility_label">Skip to main content</a>
+      <a href="#main" class="accessibility_label_top">Skip to main content</a>
       <nav>
-        <p><a href="/">capjamesg's IndieAuth Endpoint</a></p>
+        <p><a href="/">SnackAuth</a></p>
         {% if session.get("logged_in") == True %}
         <ul>
           <li><a href="/issued">Issued Tokens</a></li>
           <li><a href="/logout">Logout</a></li>
+        </ul>
+        {% else %}
+        <ul>
+          <li><a href="/login">Login</a></li>
         </ul>
         {% endif %}
       </nav>
