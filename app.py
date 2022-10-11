@@ -14,69 +14,14 @@ from bs4 import BeautifulSoup
 from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
                    request, session)
 
+import indieweb_utils
+from dataclasses import asdict
+
 from config import (API_KEY, AUTH_SERVER_URL, SECRET_KEY, WEBHOOK_ACCESS_TOKEN,
                     WEBHOOK_SERVER, WEBHOOK_URL)
 from helpers import verify_code
-from scopes import SCOPE_DEFINITIONS
 
 app = Blueprint("app", __name__)
-
-
-def get_h_app_item(web_page, client_id, redirect_uri_scheme, redirect_uri_domain):
-    h_x_app = BeautifulSoup(web_page, "lxml")
-    h_app_item = h_x_app.select(".h-app")
-
-    if not h_app_item:
-        h_app_item = h_x_app.select(".h-x-app")
-
-    if h_app_item:
-        h_app_item = h_app_item[0]
-        logo = h_app_item.select(".u-logo")
-        name = h_app_item.select(".p-name")
-        url = h_app_item.select(".u-url")
-        summary = h_app_item.select(".p-summary")
-
-        h_app_item = {}
-
-        if name and name[0].text.strip() != "":
-            h_app_item["name"] = name[0].text
-        else:
-            h_app_item["name"] = client_id
-
-        if logo and len(logo) > 0 and logo[0].get("src"):
-            logo_to_validate = logo[0].get("src")
-            if logo[0].get("src").startswith("/"):
-                logo_to_validate = (
-                    redirect_uri_scheme
-                    + redirect_uri_domain.strip("/")
-                    + logo[0].get("src")
-                )
-            elif logo[0].get("src").startswith("//"):
-                logo_to_validate = redirect_uri_scheme + logo[0].get("src")
-            elif logo[0].get("src").startswith("http://") or logo[0].get(
-                "src"
-            ).startswith("https://"):
-                logo_to_validate = logo[0].get("src")
-            else:
-                logo_to_validate = (
-                    redirect_uri_scheme
-                    + redirect_uri_domain.strip("/")
-                    + "/"
-                    + logo[0].get("src")
-                )
-
-            h_app_item["logo"] = logo_to_validate
-
-        if url and url[0].get("href").strip() != "":
-            h_app_item["url"] = url[0].get("href")
-        else:
-            h_app_item["url"] = client_id
-
-        if summary and summary[0].text.strip() != "":
-            h_app_item["summary"] = summary[0].text
-
-    return h_app_item
-
 
 @app.route("/")
 def index():
@@ -147,24 +92,20 @@ def authorization_endpoint():
         ):
             fetch_client = requests.get(client_id)
 
-            link_headers = fetch_client.headers.get("link")
-
             confirmed_redirect_uri = False
 
-            if link_headers:
-                for link in link_headers.split(","):
-                    if 'rel="redirect_uri"' in link:
-                        url = link.split(";")[0].strip("<>")
+            links = indieweb_utils.discover_endpoints(client_id, ["redirect_uri"])
 
-                        if url.startswith("/"):
-                            url = (
-                                redirect_uri_scheme
-                                + redirect_uri_domain.strip("/")
-                                + url
-                            )
+            for url in links:
+                if url.startswith("/"):
+                    url = (
+                        redirect_uri_scheme
+                        + redirect_uri_domain.strip("/")
+                        + url
+                    )
 
-                        if url == redirect_uri:
-                            confirmed_redirect_uri = True
+                if url == redirect_uri:
+                    confirmed_redirect_uri = True
 
             link_tags = BeautifulSoup(fetch_client.text, "lxml").find_all("link")
 
@@ -182,8 +123,8 @@ def authorization_endpoint():
                 return jsonify({"error": "invalid_request"})
 
         if client_id_app.status_code == 200:
-            h_app_item = get_h_app_item(
-                client_id_app.text, client_id, redirect_uri_scheme, redirect_uri_domain
+            h_app_item = indieweb_utils.get_h_app_item(
+                client_id_app.text, client_id
             )
 
         return render_template(
@@ -197,7 +138,7 @@ def authorization_endpoint():
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
             h_app_item=h_app_item,
-            SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
+            SCOPE_DEFINITIONS=indieweb_utils.SCOPE_DEFINITIONS,
             title=f"Authenticate to {client_id.replace('https://', '').replace('http://', '').strip()}",
         )
 
@@ -208,31 +149,30 @@ def authorization_endpoint():
     code_challenge = request.form.get("code_challenge")
     code_challenge_method = request.form.get("code_challenge_method")
 
-    if grant_type != "authorization_code":
+    try:
+        is_valid = indieweb_utils.validate_authorization_response(
+            grant_type,
+            code,
+            client_id,
+            redirect_uri,
+            code_challenge,
+            code_challenge_method
+        )
+    except Exception:
         return jsonify({"error": "invalid_request"})
 
-    if not code or not client_id or not redirect_uri:
+    if is_valid is False:
         return jsonify({"error": "invalid_request"})
-
-    if code_challenge and code_challenge_method:
-        if code_challenge_method != "S256":
-            return jsonify({"error": "invalid_request"})
-
-        if len(code_challenge) < 43:
-            return jsonify({"error": "invalid_request"})
-
-        if len(code_challenge) > 128:
-            return jsonify({"error": "invalid_request"})
 
     try:
         decoded_code = jwt.decode(code, SECRET_KEY, algorithms=["HS256"])
     except:
         return jsonify({"error": "invalid_grant"})
 
-    message = verify_code(client_id, redirect_uri, decoded_code)
-
-    if message != None:
-        return jsonify({"error": message})
+    try:
+        indieweb_utils._verify_decoded_code(client_id, redirect_uri, decoded_code["client_id"], decoded_code["redirect_uri"], decoded_code["expires"])
+    except Exception as error_message:
+        return jsonify({"error": error_message})
 
     return jsonify({"me": decoded_code["me"].strip("/") + "/"})
 
@@ -263,7 +203,7 @@ def view_issued_tokens():
             title="About an Issued Token",
             token_app=token_app,
             token=issued_tokens[0],
-            SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
+            SCOPE_DEFINITIONS=indieweb_utils.SCOPE_DEFINITIONS,
         )
 
     if not session.get("logged_in") and authorization_token != API_KEY:
@@ -285,7 +225,7 @@ def view_issued_tokens():
         template,
         title="Issued Tokens",
         issued_tokens=issued_tokens,
-        SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
+        SCOPE_DEFINITIONS=indieweb_utils.SCOPE_DEFINITIONS,
     )
 
 
@@ -299,21 +239,9 @@ def generate_key():
     redirect_uri = request.form.get("redirect_uri")
     response_type = request.form.get("response_type")
     state = request.form.get("state")
-    code_challenge = request.form.get("code_challenge")
     code_challenge_method = request.form.get("code_challenge_method")
     scope = request.form.get("scope").lower()
     is_manually_issued = request.form.get("is_manually_issued")
-
-    if (
-        not client_id
-        or not redirect_uri
-        or not response_type
-        or (not state and state != "")
-    ):
-        return jsonify({"error": "invalid_request"})
-
-    if response_type != "code" and response_type != "id":
-        return jsonify({"error": "invalid_request"})
 
     final_scope = ""
 
@@ -321,33 +249,30 @@ def generate_key():
         if request.form.get(f"scope_{item}"):
             final_scope += f"{item} "
 
-    client_id_app = requests.get(client_id)
+    try:
+        response = indieweb_utils.generate_auth_token(
+            me,
+            client_id,
+            redirect_uri,
+            response_type,
+            state,
+            code_challenge_method,
+            final_scope,
+            SECRET_KEY
+        )
 
-    redirect_uri_scheme = parse_url(redirect_uri).scheme
-    redirect_uri_domain = parse_url(redirect_uri).netloc
+        encoded_code = response.code
+    except Exception:
+        return jsonify({"error": "invalid_request"})
 
-    h_app_item = get_h_app_item(
-        client_id_app.text, client_id, redirect_uri_scheme, redirect_uri_domain
-    )
+    try:
+        client_id_app = requests.get(client_id, timeout=5)
 
-    random_string = "".join(
-        random.choice(string.ascii_uppercase + string.digits) for _ in range(10)
-    )
-
-    encoded_code = jwt.encode(
-        {
-            "me": me,
-            "random_string": random_string,
-            "expires": int(time.time()) + 3600,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": final_scope,
-            "code_challenge": code_challenge,
-            "code_challenge_method": code_challenge_method,
-        },
-        SECRET_KEY,
-        algorithm="HS256",
-    )
+        h_app_item = indieweb_utils.get_h_app_item(
+            client_id_app.text, client_id
+        )
+    except Exception:
+        h_app_item = {}
 
     connection = sqlite3.connect("tokens.db")
 
@@ -431,7 +356,7 @@ def token_endpoint():
     if request.method == "GET":
         authorization = request.headers.get("authorization")
 
-        if authorization == None:
+        if authorization is None:
             return jsonify({"error": "invalid_request"})
 
         connection = sqlite3.connect("tokens.db")
@@ -469,47 +394,15 @@ def token_endpoint():
                 return jsonify({"error": "invalid_request"})
 
         if "profile" in scope:
-            me_profile = requests.get(me)
+            parsed_profile = indieweb_utils.get_profile(me)
 
-            if me_profile:
-                profile_item = BeautifulSoup(me_profile.text, "html.parser")
-                h_card = profile_item.select(".h-card")
-
-                if h_card:
-                    h_card = h_card[0]
-                    name = h_card.select(".p-name")
-                    photo = h_card.select(".u-photo")
-                    url = h_card.select(".u-url")
-                    email = h_card.select(".u-email")
-
-                    profile = {}
-
-                    if name and name[0].text.strip() != "":
-                        profile["name"] = name[0].text
-                    else:
-                        profile["name"] = me
-
-                    if photo:
-                        profile["photo"] = photo[0].get("src")
-
-                    if url and url[0].get("href").strip() != "":
-                        profile["url"] = url[0].get("href")
-                    else:
-                        profile["url"] = me
-
-                    if email:
-                        profile["email"] = email[0].text.replace("mailto:", "")
-                    else:
-                        profile["email"] = None
-                else:
-                    profile = None
-
+            if parsed_profile:
                 return jsonify(
                     {
                         "me": me.strip("/") + "/",
                         "client_id": client_id,
                         "scope": scope,
-                        "profile": profile,
+                        "profile": asdict(parsed_profile),
                     }
                 )
 
@@ -537,33 +430,6 @@ def token_endpoint():
     redirect_uri = request.form.get("redirect_uri")
     code_verifier = request.form.get("code_verifier")
 
-    if not code or not client_id or not redirect_uri or not grant_type:
-        return jsonify({"error": "invalid_request"})
-
-    if grant_type != "authorization_code":
-        return jsonify({"error": "invalid_request"})
-
-    try:
-        decoded_code = jwt.decode(code, SECRET_KEY, algorithms=["HS256"])
-    except Exception as e:
-        return jsonify({"error": "Invalid code."})
-
-    if code_verifier != None and decoded_code["code_challenge_method"] == "S256":
-        sha256_code = hashlib.sha256(code_verifier.encode("utf-8")).hexdigest()
-
-        code_challenge = base64.b64encode(sha256_code.encode("utf-8")).decode("utf-8")
-
-        if code_challenge != decoded_code["code_challenge"]:
-            return jsonify({"error": "invalid_request"})
-
-    message = verify_code(client_id, redirect_uri, decoded_code)
-
-    if message != None:
-        return jsonify({"error": message})
-
-    scope = decoded_code["scope"]
-    me = decoded_code["me"]
-
     if grant_type == "authorization_code":
         access = "all"
     else:
@@ -580,19 +446,22 @@ def token_endpoint():
                 return jsonify({"error": "invalid_ticket"}), 400
 
             access = ticket[1]
+    try:
+        redeem_code = indieweb_utils.redeem_code(
+            grant_type,
+            code,
+            client_id,
+            redirect_uri,
+            code_verifier,
+            SECRET_KEY,
+            resource=access
+        )
 
-    access_token = jwt.encode(
-        {
-            "me": me,
-            "expires": int(time.time()) + 360000,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": scope,
-            "resource": access,
-        },
-        SECRET_KEY,
-        algorithm="HS256",
-    )
+        access_token = redeem_code.access_token
+        scope = redeem_code.scope
+        me = redeem_code.me
+    except Exception:
+        return jsonify({"error": "invalid_request"})
 
     return jsonify(
         {"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me}
@@ -608,20 +477,7 @@ def oauth_authorization_server():
         "issuer": "https://auth.jamesg.blog/auth",
         "response_modes_supported": ["query"],
         "response_types_supported": ["code"],
-        "scopes_supported": [
-            "create",
-            "update",
-            "delete",
-            "undelete",
-            "media",
-            "profile",
-            "email",
-            "read",
-            "follow",
-            "mute",
-            "block",
-            "channels",
-        ],
+        "scopes_supported": indieweb_utils.SCOPE_DEFINITIONS,
         "token_endpoint": "https://auth.jamesg.blog/token",
     }
 

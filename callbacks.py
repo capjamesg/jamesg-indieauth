@@ -71,7 +71,7 @@ def github_callback():
 
     signed_in_with_correct_user = get_rels(me_url)
 
-    if signed_in_with_correct_user == False:
+    if signed_in_with_correct_user is False:
         flash("You are not signed in with the correct user.")
         return redirect("/login")
 
@@ -105,7 +105,7 @@ def twitter_callback():
 
         signed_in_with_correct_user = get_rels(me_url)
 
-        if signed_in_with_correct_user == False:
+        if signed_in_with_correct_user is False:
             flash("You are not signed in with the correct user.")
             return redirect("/login")
 
@@ -149,7 +149,7 @@ def passwordless_auth():
 
 @callbacks.route("/auth/passwordless/check")
 def passwordless_check():
-    if session.get("transaction_id") == None:
+    if session.get("transaction_id") is None:
         return redirect("/login")
 
     headers = {
