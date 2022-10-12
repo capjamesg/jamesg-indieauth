@@ -8,20 +8,38 @@ import string
 import time
 from urllib.parse import urlparse as parse_url
 
+SCOPE_DEFINITIONS = {
+    "create": "Give permission to create posts to your site",
+    "update": " Give permission to update posts to your site",
+    "delete": "Give permission to delete posts to your site",
+    "undelete": "Give permission to undelete posts",
+    "media": "Give permission to upload assets to your media endpoint",
+    "profile": "Share your email, photo, and name from your website homepage (if available)",
+    "email": "Share your email address",
+    "read": "Give read access to channels in your feed reader",
+    "follow": "Give permission to follow feeds",
+    "mute": "Give permission to mute and unmute feeds",
+    "block": "Give permission to block and unblock feeds",
+    "channels": "Give permission to manage channels",
+    "draft": "Give permission to create draft posts",
+    "post": "Give permission to post to your site",
+}
+
+from dataclasses import asdict
+
+import indieweb_utils
 import jwt
 import requests
 from bs4 import BeautifulSoup
 from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
                    request, session)
 
-import indieweb_utils
-from dataclasses import asdict
-
 from config import (API_KEY, AUTH_SERVER_URL, SECRET_KEY, WEBHOOK_ACCESS_TOKEN,
                     WEBHOOK_SERVER, WEBHOOK_URL)
 from helpers import verify_code
 
 app = Blueprint("app", __name__)
+
 
 @app.route("/")
 def index():
@@ -98,11 +116,7 @@ def authorization_endpoint():
 
             for url in links:
                 if url.startswith("/"):
-                    url = (
-                        redirect_uri_scheme
-                        + redirect_uri_domain.strip("/")
-                        + url
-                    )
+                    url = redirect_uri_scheme + redirect_uri_domain.strip("/") + url
 
                 if url == redirect_uri:
                     confirmed_redirect_uri = True
@@ -123,9 +137,7 @@ def authorization_endpoint():
                 return jsonify({"error": "invalid_request"})
 
         if client_id_app.status_code == 200:
-            h_app_item = indieweb_utils.get_h_app_item(
-                client_id_app.text, client_id
-            )
+            h_app_item = indieweb_utils.get_h_app_item(client_id_app.text, client_id)
 
         return render_template(
             "authentication_flow/confirm_auth.html",
@@ -138,7 +150,7 @@ def authorization_endpoint():
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
             h_app_item=h_app_item,
-            SCOPE_DEFINITIONS=indieweb_utils.SCOPE_DEFINITIONS,
+            SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
             title=f"Authenticate to {client_id.replace('https://', '').replace('http://', '').strip()}",
         )
 
@@ -156,7 +168,7 @@ def authorization_endpoint():
             client_id,
             redirect_uri,
             code_challenge,
-            code_challenge_method
+            code_challenge_method,
         )
     except Exception:
         return jsonify({"error": "invalid_request"})
@@ -170,7 +182,13 @@ def authorization_endpoint():
         return jsonify({"error": "invalid_grant"})
 
     try:
-        indieweb_utils._verify_decoded_code(client_id, redirect_uri, decoded_code["client_id"], decoded_code["redirect_uri"], decoded_code["expires"])
+        indieweb_utils._verify_decoded_code(
+            client_id,
+            redirect_uri,
+            decoded_code["client_id"],
+            decoded_code["redirect_uri"],
+            decoded_code["expires"],
+        )
     except Exception as error_message:
         return jsonify({"error": error_message})
 
@@ -203,7 +221,7 @@ def view_issued_tokens():
             title="About an Issued Token",
             token_app=token_app,
             token=issued_tokens[0],
-            SCOPE_DEFINITIONS=indieweb_utils.SCOPE_DEFINITIONS,
+            SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
         )
 
     if not session.get("logged_in") and authorization_token != API_KEY:
@@ -225,7 +243,7 @@ def view_issued_tokens():
         template,
         title="Issued Tokens",
         issued_tokens=issued_tokens,
-        SCOPE_DEFINITIONS=indieweb_utils.SCOPE_DEFINITIONS,
+        SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
     )
 
 
@@ -258,7 +276,7 @@ def generate_key():
             state,
             code_challenge_method,
             final_scope,
-            SECRET_KEY
+            SECRET_KEY,
         )
 
         encoded_code = response.code
@@ -268,9 +286,7 @@ def generate_key():
     try:
         client_id_app = requests.get(client_id, timeout=5)
 
-        h_app_item = indieweb_utils.get_h_app_item(
-            client_id_app.text, client_id
-        )
+        h_app_item = indieweb_utils.get_h_app_item(client_id_app.text, client_id)
     except Exception:
         h_app_item = {}
 
@@ -454,7 +470,7 @@ def token_endpoint():
             redirect_uri,
             code_verifier,
             SECRET_KEY,
-            resource=access
+            resource=access,
         )
 
         access_token = redeem_code.access_token
@@ -477,7 +493,7 @@ def oauth_authorization_server():
         "issuer": "https://auth.jamesg.blog/auth",
         "response_modes_supported": ["query"],
         "response_types_supported": ["code"],
-        "scopes_supported": indieweb_utils.SCOPE_DEFINITIONS,
+        "scopes_supported": SCOPE_DEFINITIONS,
         "token_endpoint": "https://auth.jamesg.blog/token",
     }
 

@@ -1,5 +1,4 @@
-import mf2py
-import requests
+import indieweb_utils
 from flask import Blueprint, flash, redirect, render_template, request, session
 
 from config import ME
@@ -41,7 +40,8 @@ def login():
 
         return redirect("/rel")
     return render_template(
-        "ask_for_domain.html", title="Login to capjamesg's IndieAuth Server"
+        "authentication_flow/ask_for_domain.html",
+        title="Login to capjamesg's IndieAuth Server",
     )
 
 
@@ -56,14 +56,7 @@ def rel_login_stage():
 
         return redirect("/")
 
-    rel_request = requests.get(session.get("rel_me_check"))
-
-    parsed = mf2py.parse(rel_request.text)
-
-    if parsed.get("rels") and parsed["rels"].get("me"):
-        rel_me_links = parsed["rels"]["me"]
-    else:
-        rel_me_links = []
+    rel_me_links = indieweb_utils.get_valid_relmeauth_links(session.get("rel_me_check"))
 
     return render_template(
         "authentication_flow/login.html",

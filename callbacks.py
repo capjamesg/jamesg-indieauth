@@ -9,7 +9,7 @@ from config import (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
                     GITHUB_OAUTH_REDIRECT, ME, OKTA_ACCESS_TOKEN, OKTA_DOMAIN,
                     OKTA_FACTOR_ID, OKTA_USER_ID, TWITTER_OAUTH_KEY,
                     TWITTER_OAUTH_SECRET)
-from helpers import get_rels
+from helpers import is_authenticated_as_allowed_user
 
 callbacks = Blueprint("callbacks", __name__)
 
@@ -69,7 +69,7 @@ def github_callback():
     me = user.get("login")
     me_url = "https://github.com/" + me
 
-    signed_in_with_correct_user = get_rels(me_url)
+    signed_in_with_correct_user = is_authenticated_as_allowed_user(me_url)
 
     if signed_in_with_correct_user is False:
         flash("You are not signed in with the correct user.")
@@ -143,7 +143,8 @@ def passwordless_auth():
     session["transaction_id"] = r.json()["_links"]["poll"]["href"]
 
     return render_template(
-        "passwordless.html", title="Authenticate with a passwordless link"
+        "authentication_flow/passwordless.html",
+        title="Authenticate with a passwordless link",
     )
 
 
@@ -163,13 +164,15 @@ def passwordless_check():
     if r.status_code != 200:
         flash("There was an error authenticating with Okta.")
         return render_template(
-            "passwordless.html", title="Authenticate with a passwordless link"
+            "authentication_flow/passwordless.html",
+            title="Authenticate with a passwordless link",
         )
 
     if r.json()["factorResult"] != "SUCCESS":
         flash("There was an error authenticating with Okta.")
         return render_template(
-            "passwordless.html", title="Authenticate with a passwordless link"
+            "authentication_flow/passwordless.html",
+            title="Authenticate with a passwordless link",
         )
 
     session["me"] = ME

@@ -1,12 +1,12 @@
 import time
+from typing import Optional
 
-import mf2py
-import requests
+import indieweb_utils
 
 from config import ME
 
 
-def verify_code(client_id, redirect_uri, decoded_code):
+def verify_code(client_id: str, redirect_uri: str, decoded_code: str) -> Optional[str]:
     if int(time.time()) > decoded_code["expires"]:
         return "invalid_grant"
 
@@ -19,15 +19,11 @@ def verify_code(client_id, redirect_uri, decoded_code):
     return None
 
 
-def get_rels(me_url):
-    home = requests.get(ME)
-
-    home_parsed = mf2py.parse(home.text)
-
-    if home_parsed.get("rels") and home_parsed["rels"].get("me"):
-        home_me_links = home_parsed["rels"]["me"]
-    else:
-        home_me_links = []
+def is_authenticated_as_allowed_user(me_url: str) -> bool:
+    """
+    Check if the allowed user has a valid rel=me link pointing to their domain.
+    """
+    home_me_links = indieweb_utils.get_valid_relmeauth_links(ME)
 
     for link in home_me_links:
         if link == me_url:
