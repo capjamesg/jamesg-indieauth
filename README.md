@@ -2,10 +2,9 @@
 
 This repository contains the code for my IndieAuth endpoint. This endpoint has been developed in adherence with the [IndieAuth specification](https://indieauth.spec.indieweb.org), a method of authentication built on top of OAuth 2.0.
 
-Using this project, you can authenticate yourself to a service by using RelMeAuth. RelMeAuth requires you have rel="me" links on your blog that link to social profiles. At the moment, this project only supports the following rel=me links:
+Using this project, you can authenticate yourself to a service by using RelMeAuth. RelMeAuth requires you have rel="me" links on your blog that link to social profiles. At the moment, this project supports the following rel=me links:
 
 - GitHub
-- Twitter
 
 You can also authenticate using Okta Verify's passwordless solution. To do so, you will need to have an active Okta developer account.
 
@@ -26,13 +25,6 @@ Next, you will need to add some configration variables to a file called config.p
 Create a file called config.py in the root directory of the project. Add the following value to the file:
 
     ME="https://yourdomain.com"
-    
-Next, add your Twitter API keys to the file like so (leave all values you do not want to specify as ""):
-
-    TWITTER_OAUTH_KEY="KEY"
-    TWITTER_OAUTH_SECRET="SECRET"
-
-These values can be obtained from [Twitter](https://developer.twitter.com). You will need a Twitter Developer account to obtain these values.
 
 Then add your GitHub OAuth API keys (leave all values you do not want to specify as ""):
 

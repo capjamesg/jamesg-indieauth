@@ -5,23 +5,19 @@ import requests
 import tweepy
 from flask import Blueprint, flash, redirect, render_template, request, session
 
-from config import (GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
-                    GITHUB_OAUTH_REDIRECT, ME, OKTA_ACCESS_TOKEN, OKTA_DOMAIN,
-                    OKTA_FACTOR_ID, OKTA_USER_ID, TWITTER_OAUTH_KEY,
-                    TWITTER_OAUTH_SECRET)
+from config import (
+    GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET,
+    GITHUB_OAUTH_REDIRECT,
+    ME,
+    OKTA_ACCESS_TOKEN,
+    OKTA_DOMAIN,
+    OKTA_FACTOR_ID,
+    OKTA_USER_ID,
+)
 from helpers import is_authenticated_as_allowed_user
 
 callbacks = Blueprint("callbacks", __name__)
-
-
-@callbacks.route("/auth/twitter")
-def twitter_auth():
-    auth = tweepy.OAuthHandler(TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET)
-    auth_url = auth.get_authorization_url()
-    session["request_token"] = auth.request_token
-    session.pop("rel_me_check")
-    return redirect(auth_url)
-
 
 @callbacks.route("/auth/github")
 def github_auth():
@@ -84,43 +80,6 @@ def github_callback():
         return redirect(redirect_uri)
 
     return redirect("/")
-
-
-@callbacks.route("/auth/twitter/callback")
-def twitter_callback():
-    auth = tweepy.OAuthHandler(TWITTER_OAUTH_KEY, TWITTER_OAUTH_SECRET)
-
-    try:
-        auth.request_token = {
-            "oauth_token": request.args.get("oauth_token"),
-            "oauth_token_secret": request.args.get("oauth_verifier"),
-        }
-
-        auth.get_access_token(verifier=request.args.get("oauth_verifier"))
-
-        api = tweepy.API(auth)
-
-        me = api.me().screen_name
-        me_url = "https://twitter.com/" + me
-
-        signed_in_with_correct_user = get_rels(me_url)
-
-        if signed_in_with_correct_user is False:
-            flash("You are not signed in with the correct user.")
-            return redirect("/login")
-
-        session["me"] = ME
-        session["logged_in"] = True
-
-        if session.get("user_redirect"):
-            redirect_uri = session.get("user_redirect")
-            session.pop("user_redirect")
-            return redirect(redirect_uri)
-
-        return redirect("/")
-    except:
-        flash("Twitter authorization failed. Please try again.")
-        return redirect("/login")
 
 
 @callbacks.route("/auth/passwordless")

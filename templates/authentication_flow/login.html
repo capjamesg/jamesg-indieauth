@@ -16,9 +16,7 @@
       <p>You can use any of the authentication methods below to sign in to capjamesg's IndieAuth server.</p>
       <ul class="rel_me_links">
          {% for l in rel_me_links %}
-         {% if l.startswith("https://twitter.com") %}
-            <li><a href="/auth/twitter">Twitter</a>
-         {% elif l.startswith("https://github.com") %}
+         {% If l.startswith("https://github.com") %}
             <li><a href="/auth/github">GitHub</a>
          {% endif %}
          {% endfor %}

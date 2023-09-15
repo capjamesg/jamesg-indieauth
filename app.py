@@ -1,12 +1,28 @@
-import base64
 import datetime
-import hashlib
 import json
-import random
 import sqlite3
-import string
 import time
 from urllib.parse import urlparse as parse_url
+
+from dataclasses import asdict
+
+import indieweb_utils
+import jwt
+import requests
+from bs4 import BeautifulSoup
+from flask import (
+    Blueprint,
+    abort,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    session,
+)
+
+import config
+
 
 SCOPE_DEFINITIONS = {
     "create": "Give permission to create posts to your site",
@@ -24,19 +40,6 @@ SCOPE_DEFINITIONS = {
     "draft": "Give permission to create draft posts",
     "post": "Give permission to post to your site",
 }
-
-from dataclasses import asdict
-
-import indieweb_utils
-import jwt
-import requests
-from bs4 import BeautifulSoup
-from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
-                   request, session)
-
-from config import (API_KEY, AUTH_SERVER_URL, SECRET_KEY, WEBHOOK_ACCESS_TOKEN,
-                    WEBHOOK_SERVER, WEBHOOK_URL)
-from helpers import verify_code
 
 app = Blueprint("app", __name__)
 
@@ -224,7 +227,7 @@ def view_issued_tokens():
             SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
         )
 
-    if not session.get("logged_in") and authorization_token != API_KEY:
+    if not session.get("logged_in") and authorization_token != config.API_KEY:
         return redirect("/login")
 
     connection = sqlite3.connect("tokens.db")
@@ -326,12 +329,12 @@ def generate_key():
         )
         return redirect("/issued")
 
-    if WEBHOOK_SERVER == True:
+    if config.WEBHOOK_SERVER and config.WEBHOOK_SERVER == True:
         data = {"message": f"{me} has issued an access token to {client_id}"}
 
-        headers = {"Authorization": f"Bearer {WEBHOOK_ACCESS_TOKEN}"}
+        headers = {"Authorization": f"Bearer {config.WEBHOOK_ACCESS_TOKEN}"}
 
-        requests.post(WEBHOOK_URL, data=data, headers=headers)
+        requests.post(config.WEBHOOK_URL, data=data, headers=headers)
 
     return redirect(redirect_uri.strip("/") + f"?code={encoded_code}&state={state}")
 
@@ -355,7 +358,7 @@ def revoke_from_user_interface():
             )
 
     r = requests.post(
-        AUTH_SERVER_URL.strip("/") + "/token",
+        config.AUTH_SERVER_URL.strip("/") + "/token",
         data={"token": token_to_revoke, "action": "revoke"},
     )
 

@@ -2,19 +2,7 @@ import os
 
 from flask import Flask, render_template
 
-from config import SECRET_KEY, SENTRY_DSN, SENTRY_SERVER_NAME
-
-# set up sentry for error handling
-if SENTRY_DSN != "":
-    import sentry_sdk
-    from sentry_sdk.integrations.flask import FlaskIntegration
-
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[FlaskIntegration()],
-        traces_sample_rate=1.0,
-        server_name=SENTRY_SERVER_NAME,
-    )
+from config import SECRET_KEY
 
 
 def create_app():
