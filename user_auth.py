@@ -47,6 +47,8 @@ def login():
 
 @user_auth.route("/rel")
 def rel_login_stage():
+    print('x')
+    session["me"] = "jamesg.blog"
     if not session.get("rel_me_check"):
         return redirect("/login")
 

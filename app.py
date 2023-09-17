@@ -279,7 +279,7 @@ def generate_key():
             state,
             code_challenge_method,
             final_scope,
-            SECRET_KEY,
+            config.SECRET_KEY,
         )
 
         encoded_code = response.code
@@ -312,7 +312,7 @@ def generate_key():
             )
 
         cursor.execute(
-            "INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 encoded_code,
                 me,
@@ -320,6 +320,7 @@ def generate_key():
                 client_id,
                 int(time.time()) + 3600,
                 json.dumps(h_app_item),
+                "" # scope
             ),
         )
 
@@ -377,6 +378,67 @@ def token_endpoint():
 
         if authorization is None:
             return jsonify({"error": "invalid_request"})
+        
+        grant_type = request.args.get("grant_type")
+        me = request.args.get("me")
+
+        if grant_type == "ticket":
+            ticket = request.args.get("ticket")
+
+            if not me:
+                return jsonify({"error": "invalid_request"})
+
+            if not ticket:
+                return jsonify({"error": "invalid_request"})
+
+            db = sqlite3.connect("tokens.db")
+
+            with db:
+                cursor = db.cursor()
+
+                ticket = cursor.execute(
+                    "SELECT * FROM tickets WHERE token = ?", (ticket,)
+                ).fetchone()
+
+                # ticket[0] is ticket
+                # ticket[1] is scope
+
+                if not ticket:
+                    return jsonify({"error": "invalid_ticket"}), 400
+                
+                response = indieweb_utils.generate_auth_token(
+                    me,
+                    client_id,
+                    redirect_uri,
+                    "id",
+                    "state",
+                    "S256",
+                    ticket[1],
+                    config.SECRET_KEY,
+                )
+
+                encoded_code = response.code
+
+                # save in db as issued token
+
+                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                cursor.execute(
+                    "INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        encoded_code,
+                        me,
+                        now,
+                        client_id,
+                        int(time.time()) + 3600,
+                        json.dumps({}),
+                        resource,
+                    ),
+                )
+
+                authorization = encoded_code
+
+                return jsonify({"access_token": authorization, "token_type": "Bearer", "scope": ticket[1], "me": me})
 
         connection = sqlite3.connect("tokens.db")
 
@@ -394,7 +456,7 @@ def token_endpoint():
 
         try:
             decoded_authorization_code = jwt.decode(
-                authorization, SECRET_KEY, algorithms=["HS256"]
+                authorization, config.SECRET_KEY, algorithms=["HS256"]
             )
         except Exception as e:
             return jsonify({"error": "invalid_code"})
@@ -424,10 +486,24 @@ def token_endpoint():
                         "profile": asdict(parsed_profile),
                     }
                 )
+            
+        response = {"me": me.strip("/") + "/", "client_id": client_id, "scope": scope}
 
-        return jsonify(
-            {"me": me.strip("/") + "/", "client_id": client_id, "scope": scope}
-        )
+        db = sqlite3.connect("tokens.db")
+
+        with db:
+            cursor = db.cursor()
+
+            issued_tokens = cursor.execute(
+                "SELECT * FROM issued_tokens WHERE token = ?", (authorization,)
+            ).fetchone()
+
+            if not issued_tokens:
+                return jsonify({"error": "invalid_grant"})
+
+            response["resource"] = issued_tokens[6]
+
+        return jsonify(response)
 
     action = request.form.get("action")
 
@@ -472,7 +548,7 @@ def token_endpoint():
             client_id,
             redirect_uri,
             code_verifier,
-            SECRET_KEY,
+            config.SECRET_KEY,
             resource=access,
         )
 
@@ -486,6 +562,43 @@ def token_endpoint():
         {"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me}
     )
 
+@app.route("/ticket-issuance")
+def issue_ticket():
+    if request.method == "POST":
+        db = sqlite3.connect("tokens.db")
+
+        with db:
+            cursor = db.cursor()
+
+            issuance_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # resource is the scope
+            cursor.execute(
+                "INSERT INTO tickets VALUES (?, ?, ?, ?)",
+                (request.form.get("ticket"), request.form.get("resource"), issuance_time, request.form.get("subject")),
+            )
+
+            endpoints = indieweb_utils.discover_endpoints(
+                request.form.get("target"), ["ticket_endpoint"]
+            )
+
+            ticket_endpoint = endpoints.get("ticket_endpoint")
+
+            # make http request to send ticket
+            try:
+                requests.post(
+                    ticket_endpoint,
+                    data={"ticket": request.form.get("ticket"), "resource": request.form.get("resource"), "subject": request.form.get("subject")},
+                )
+            except:
+                return jsonify({"error": "invalid_request"})
+            
+        # alert get_flashed_messages message
+        flash("Your ticket was successfully issued.")
+            
+        return render_template("ticket_issuance.html", title="Issue a Ticket")
+    
+    return render_template("ticket_issuance.html", title="Issue a Ticket")
 
 @app.route("/.well-known/oauth-authorization-server")
 def oauth_authorization_server():

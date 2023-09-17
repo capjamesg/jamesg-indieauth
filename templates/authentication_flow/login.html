@@ -16,9 +16,9 @@
       <p>You can use any of the authentication methods below to sign in to capjamesg's IndieAuth server.</p>
       <ul class="rel_me_links">
          {% for l in rel_me_links %}
-         {% If l.startswith("https://github.com") %}
-            <li><a href="/auth/github">GitHub</a>
-         {% endif %}
+            {% if l.startswith("https://github.com") %}
+               <li><a href="/auth/github">GitHub</a>
+            {% endif %}
          {% endfor %}
          <li><a href="/auth/passwordless">Mobile push notification</a></li>
       </ul>
