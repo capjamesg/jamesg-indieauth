@@ -1,43 +1,44 @@
 {% extends "base.html" %}
 {% block content %}
-<section>
+<section id="auth">
     <form method="POST" action="/generate">
         {% if h_app_item %}
-            <h1>Authenticate to {{ h_app_item["name"] }}</h1>
+            <h1>Sign in to {{ h_app_item["name"] }}</h1>
             {% if h_app_item.get("logo") %}
-                <img src="{{ h_app_item.get('logo') }}" alt="{{ h_app_item.get('name') }} logo" height="50" width="50" />
+                <img src="{{ h_app_item.get('logo') }}" alt="{{ h_app_item.get('name') }} logo" height="100" width="100" />
             {% endif %}
-            <p><a href="{{ h_app_item['url'] }}">{{ h_app_item["name"] }}</a> is requesting your permission to authorize yourself as {{ session.get("me") }}.</p>
+            <p><a href="{{ h_app_item['url'] }}">{{ h_app_item["name"] }}</a> is requesting your permission to sign in as <a href="{{ session.get("me") }}">{{ session.get("me") }}</a>.</p>
             {% if h_app_item.get("summary") %}
                 <p>This site describes itself like so:</p>
                 <p class="message">{{ h_app_item['summary'] }}</p>
             {% endif %}
         {% else %}
         <h1>Authenticate to {{ client_id.replace("https://", "").replace("http://", "") }}</h1>
-            <p><a href="{{ client_id }}">{{ client_id.replace("https://", "").replace("http://", "") }}</a> is requesting your permission to authorize yourself as {{ session.get("me") }}.</p>
+            <p><a href="{{ client_id }}">{{ client_id.replace("https://", "").replace("http://", "") }}</a> is requesting your permission to authorize yourself as <a href="{{ session.get("me") }}">{{ session.get("me") }}</a>.</p>
         {% endif %}
         {% if scope %}
         <p>This application is requesting the following scopes:</p>
         <ul>
             {% for i in scope.split(" ") %}
-                <li><input type="checkbox" name="scope_{{ i }}" id="scope_{{ i }}" checked="checked" /> {{ i }}{% if SCOPE_DEFINITIONS.get(i) %}: {{ SCOPE_DEFINITIONS.get(i) }}{% endif %}</li>
+                <li><label for="scope_{{ i }}"><input type="checkbox" name="scope_{{ i }}" id="scope_{{ i }}" checked="checked" /> <b>{{ i }}</b>{% if SCOPE_DEFINITIONS.get(i) %}: {{ SCOPE_DEFINITIONS.get(i) }}{% endif %}</label></li>
             {% endfor %}
         </ul>
         {% else %}
         <p>This application has not requested any scopes.</p>
         {% endif %}
-        <p>You will be redirected to {{ redirect_uri }} after authorization.</p>
         {% if client_id.split("/")[2] != redirect_uri.split("/")[2] %}<p class="message warning">The client is attempting to redirect you to a URL that is on a different domain. Please verify the redirect URL above to make sure it is correct before proceeding.</p>{% endif %}
-        {% if code_challenge %}<p class="message green_border">The client has sent their request using PKCE.</p>{% elif code_challenge_method and code_challenge_method != "S256" %}<p class="message error">The client has sent their request using PKCE but does not use S256. PKCE will not be used for authentication.</p>{% else %}<p class="message warning">Note: The client has not sent their request using PKCE.</p>{% endif %}
-        <input type="hidden" name="client_id" value="{{ client_id }}">
-        <input type="hidden" name="me" value="{{ session.get('me') }}">
-        <input type="hidden" name="scope" value="{{ scope }}">
-        <input type="hidden" name="state" value="{{ state }}">
-        <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
-        <input type="hidden" name="response_type" value="{{ response_type }}">
-        <input type="hidden" name="code_challenge" value="{{ code_challenge }}">
-        <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}">
-        <input type="submit" value="Authorize">
+        {{ confirm_auth_form.csrf_token }}
+        {{ confirm_auth_form.client_id() }}
+        {{ confirm_auth_form.me() }}
+        {{ confirm_auth_form.scope() }}
+        {{ confirm_auth_form.state() }}
+        {{ confirm_auth_form.redirect_uri() }}
+        {{ confirm_auth_form.response_type() }}
+        {{ confirm_auth_form.code_challenge() }}
+        {{ confirm_auth_form.code_challenge_method() }}
+        <button type="submit"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg> Authorize</button>
+        <a href="{{ client_id }}"><button class="cancel"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg> Cancel</button></a>
+        <small>You will be redirected to <code>{{ redirect_uri }}</code> after signing in.</small>
     </form>
 </section>
 {% endblock %}

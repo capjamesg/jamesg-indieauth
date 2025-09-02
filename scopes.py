@@ -4,7 +4,7 @@ SCOPE_DEFINITIONS = {
     "delete": "Give permission to delete posts to your site",
     "undelete": "Give permission to undelete posts",
     "media": "Give permission to upload assets to your media endpoint",
-    "profile": "Share your email, photo, and name from your website homepage (if available)",
+    "profile": "Share your email, photo, and name from your website homepage",
     "email": "Share your email address",
     "read": "Give read access to channels in your feed reader",
     "follow": "Give permission to follow feeds",

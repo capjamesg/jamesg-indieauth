@@ -2,22 +2,16 @@ import random
 import string
 
 import requests
-import tweepy
-from flask import Blueprint, flash, redirect, render_template, request, session
+from flask import (Blueprint, flash, redirect, render_template, request,
+                   session, url_for)
 
-from config import (
-    GITHUB_CLIENT_ID,
-    GITHUB_CLIENT_SECRET,
-    GITHUB_OAUTH_REDIRECT,
-    ME,
-    OKTA_ACCESS_TOKEN,
-    OKTA_DOMAIN,
-    OKTA_FACTOR_ID,
-    OKTA_USER_ID,
-)
+from config import (EMAIL_SENDER, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
+                    GITHUB_OAUTH_REDIRECT, ME, POSTMARK_API_KEY)
+from forms import EmailVerificationCode
 from helpers import is_authenticated_as_allowed_user
 
 callbacks = Blueprint("callbacks", __name__)
+
 
 @callbacks.route("/auth/github")
 def github_auth():
@@ -40,11 +34,9 @@ def github_callback():
 
     session.pop("github_state")
 
-    headers = {"Accept": "application/json"}
-
     r = requests.post(
         f"https://github.com/login/oauth/access_token?client_id={GITHUB_CLIENT_ID}&client_secret={GITHUB_CLIENT_SECRET}&code={access_token}&redirect_uri={GITHUB_OAUTH_REDIRECT}",
-        headers=headers,
+        headers={"Accept": "application/json"},
     )
 
     if not r.json().get("access_token"):
@@ -82,64 +74,71 @@ def github_callback():
     return redirect("/")
 
 
-@callbacks.route("/auth/passwordless")
-def passwordless_auth():
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": f"SSWS {OKTA_ACCESS_TOKEN}",
-    }
+@callbacks.route("/auth/email")
+def email_auth():
+    email_verification_form = EmailVerificationCode()
+    no_resend = request.args.get("no_resend")
+    if request.method == "GET":
+        me = session.get("me")
+        email = "TODO"
+        if no_resend != "true":
+            random_code = "".join(
+                random.choices(string.ascii_uppercase + string.digits, k=6)
+            )
+            session["set_email_code"] = random_code
+            message = f"""<p>Hello there,</p>
 
-    r = requests.post(
-        f"{OKTA_DOMAIN}/api/v1/users/{OKTA_USER_ID}/factors/{OKTA_FACTOR_ID}/verify",
-        headers=headers,
-    )
+            <p>Artemis Auth wants you to sign in as {me}.</p>
 
-    if r.status_code != 201:
-        flash("There was an error authenticating with Okta.")
-        return redirect("/login")
+            <p>To sign in, enter the following code:</p>
 
-    session["transaction_id"] = r.json()["_links"]["poll"]["href"]
+            <p><b>{random_code}</b></p>
+            """
+            url = "https://api.postmarkapp.com/email"
 
-    return render_template(
-        "authentication_flow/passwordless.html",
-        title="Authenticate with a passwordless link",
-    )
+            headers = {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "X-Postmark-Server-Token": POSTMARK_API_KEY,
+            }
 
+            data = {
+                "From": EMAIL_SENDER,
+                "To": email,
+                "Subject": "Sign in with Artemis Auth",
+                "HtmlBody": message,
+                "MessageStream": "outbound",
+            }
 
-@callbacks.route("/auth/passwordless/check")
-def passwordless_check():
-    if session.get("transaction_id") is None:
-        return redirect("/login")
+            try:
+                response = requests.post(url, headers=headers, json=data)
+                response.raise_for_status()
+            except Exception as e:
+                flash(
+                    {
+                        "message": "A passcode email was not sent due to an error. Please try again, or contact support at artemis@jamesg.blog.",
+                        "type": "fail",
+                    }
+                )
 
-    headers = {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-        "Authorization": f"SSWS {OKTA_ACCESS_TOKEN}",
-    }
-
-    r = requests.get(session.get("transaction_id"), headers=headers)
-
-    if r.status_code != 200:
-        flash("There was an error authenticating with Okta.")
         return render_template(
-            "authentication_flow/passwordless.html",
-            title="Authenticate with a passwordless link",
+            "authentication_flow/email_auth.html",
+            email_verification_form=email_verification_form,
+            title="Email Authentication",
         )
 
-    if r.json()["factorResult"] != "SUCCESS":
-        flash("There was an error authenticating with Okta.")
-        return render_template(
-            "authentication_flow/passwordless.html",
-            title="Authenticate with a passwordless link",
-        )
+    if email_verification_form.validate_on_submit():
+        if email_verification_form.code.data == session.get("set_email_code"):
+            session["me"] = session.get("me")
+            session["logged_in"] = True
 
-    session["me"] = ME
-    session["logged_in"] = True
+            if session.get("user_redirect"):
+                redirect_uri = session.get("user_redirect")
+                session.pop("user_redirect")
+                return redirect(redirect_uri)
 
-    if session.get("user_redirect"):
-        redirect_uri = session.get("user_redirect")
-        session.pop("user_redirect")
-        return redirect(redirect_uri)
+            return redirect("/")
 
-    return redirect("/")
+        else:
+            flash("The code you entered was incorrect. Please try again.")
+            return redirect(url_for("callbacks.email_auth") + "?no_resend=true")

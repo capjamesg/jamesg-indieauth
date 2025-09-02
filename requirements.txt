@@ -19,3 +19,4 @@ tweepy==4.1.0
 urllib3==1.26.18
 webencodings==0.5.1
 Werkzeug==3.0.1
+flask-wtf

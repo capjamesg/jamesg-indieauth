@@ -1,24 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Welcome to SnackAuth</h1>
-<section>
-    <h2>What is SnackAuth?</h2>
-    <p>SnackAuth is a service that lets you authenticate to a website with your domain name.</p>
-    <p>
-        SnackAuth works using <a href="https://indieauth.com">IndieAuth</a>. To sign in, you must first add rel=me links to your site. Then,
-        SnackAuth will present you with authentication options based on your rel=me links.
-    </p>
-    <p>
-        Once you have signed in with an authentication option, you can authorize a service to sign you
-        in as your domain name.
-    </p>
-    <p>
-        SnackAuth is not currently open for registrations.
-    </p>
-    <p>
-        If you are looking for a hosted IndieAuth solution, check out the
-        "<a href="https://indieweb.org/IndieAuth#Set_up_using_IndieAuth.com">Set up using IndieAuth</a>" tutorial
-        on the IndieWeb wiki.
-    </p>
-</section>
+<h1>Artemis Auth</h1>
+<p>Artemis Auth is an <a href="https://indieweb.org/IndieAuth">IndieAuth server</a>.</p>
+<p>Using Artemis Auth, you can verify your identity using your domain name, and issue tokens for services to use that support IndieAuth.</p>
+<p>To get started, add the following meta tags to your website:</p>
+<pre>
+&lt;link rel=&quot;authorization_endpoint&quot; href=&quot;{{ AUTH_SERVER_URL }}&quot;&gt;
+&lt;link rel=&quot;token_endpoint&quot; href=&quot;{{ TOKEN_SERVER_URL }}&quot;&gt;
+</pre>
+<p>When you sign into a service that supports web sign in (i.e. <a href="https://artemis.jamesg.blog">the Artemis web reader</a>), you will be able to log in using Artemis Auth.</p>
+<footer>
+    <p>This service was made with love of the web by <a href="https://jamesg.blog" rel="source repository">capjamesg</a>. <a href="https://github.com/capjamesg/artemis-auth">View source</a>.</p>
+</footer>
 {% endblock %}

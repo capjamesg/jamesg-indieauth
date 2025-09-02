@@ -2,51 +2,30 @@ import datetime
 import json
 import sqlite3
 import time
-from urllib.parse import urlparse as parse_url
-
 from dataclasses import asdict
+from urllib.parse import urlparse as parse_url
 
 import indieweb_utils
 import jwt
 import requests
 from bs4 import BeautifulSoup
-from flask import (
-    Blueprint,
-    abort,
-    flash,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    session,
-)
+from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
+                   request, session)
 
 import config
-
-
-SCOPE_DEFINITIONS = {
-    "create": "Give permission to create posts to your site",
-    "update": " Give permission to update posts to your site",
-    "delete": "Give permission to delete posts to your site",
-    "undelete": "Give permission to undelete posts",
-    "media": "Give permission to upload assets to your media endpoint",
-    "profile": "Share your email, photo, and name from your website homepage (if available)",
-    "email": "Share your email address",
-    "read": "Give read access to channels in your feed reader",
-    "follow": "Give permission to follow feeds",
-    "mute": "Give permission to mute and unmute feeds",
-    "block": "Give permission to block and unblock feeds",
-    "channels": "Give permission to manage channels",
-    "draft": "Give permission to create draft posts",
-    "post": "Give permission to post to your site",
-}
+from forms import ConfirmAuth
+from scopes import SCOPE_DEFINITIONS
 
 app = Blueprint("app", __name__)
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template(
+        "index.html",
+        AUTH_SERVER_URL=config.AUTH_SERVER_URL,
+        TOKEN_SERVER_URL=config.TOKEN_SERVER_URL,
+    )
 
 
 @app.route("/logout")
@@ -59,6 +38,8 @@ def logout():
 
 @app.route("/auth", methods=["GET", "POST"])
 def authorization_endpoint():
+    confirm_auth_form = ConfirmAuth()
+
     if request.method == "GET":
         me = request.args.get("me")
 
@@ -140,7 +121,19 @@ def authorization_endpoint():
                 return jsonify({"error": "invalid_request"})
 
         if client_id_app.status_code == 200:
-            h_app_item = indieweb_utils.get_h_app_item(client_id_app.text, client_id)
+            try:
+                h_app_item = indieweb_utils.get_h_app_item(client_id_app.text)
+            except:
+                h_app_item = {}
+
+                if client_id.endswith("/client.json"):
+                    client_file = requests.get(client_id).json()
+
+                    h_app_item = {
+                        "logo": client_file["client_logo"],
+                        "name": client_file["client_name"],
+                        "url": client_file["client_uri"],
+                    }
 
         return render_template(
             "authentication_flow/confirm_auth.html",
@@ -156,6 +149,10 @@ def authorization_endpoint():
             SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
             title=f"Authenticate to {client_id.replace('https://', '').replace('http://', '').strip()}",
         )
+
+    if not confirm_auth_form.validate_on_submit():
+        flash("There was an error with your submission.")
+        return redirect("/login")
 
     grant_type = request.form.get("grant_type")
     code = request.form.get("code")
@@ -180,7 +177,7 @@ def authorization_endpoint():
         return jsonify({"error": "invalid_request"})
 
     try:
-        decoded_code = jwt.decode(code, SECRET_KEY, algorithms=["HS256"])
+        decoded_code = jwt.decode(code, config.SECRET_KEY, algorithms=["HS256"])
     except:
         return jsonify({"error": "invalid_grant"})
 
@@ -200,7 +197,6 @@ def authorization_endpoint():
 
 @app.route("/issued")
 def view_issued_tokens():
-    is_feed_view = request.args.get("feed")
     authorization_token = request.args.get("authorization")
     token = request.args.get("token")
 
@@ -211,19 +207,19 @@ def view_issued_tokens():
             cursor = connection.cursor()
 
             issued_tokens = cursor.execute(
-                "SELECT * FROM issued_tokens WHERE token = ?", (token,)
+                "SELECT * FROM issued_tokens WHERE encoded_code = ?", (token,)
             ).fetchone()
 
             if len(issued_tokens) == 0:
                 abort(404)
 
-        token_app = json.loads(issued_tokens[0][5])
+        token_app = json.loads(issued_tokens[5])
 
         return render_template(
             "admin/single_token.html",
             title="About an Issued Token",
             token_app=token_app,
-            token=issued_tokens[0],
+            token=issued_tokens,
             SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
         )
 
@@ -237,13 +233,8 @@ def view_issued_tokens():
 
         issued_tokens = cursor.execute("SELECT * FROM issued_tokens").fetchall()
 
-    if is_feed_view == "true":
-        template = "admin/issued_feed.html"
-    else:
-        template = "admin/issued.html"
-
     return render_template(
-        template,
+        "admin/issued.html",
         title="Issued Tokens",
         issued_tokens=issued_tokens,
         SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
@@ -311,6 +302,7 @@ def generate_key():
                 "DELETE FROM issued_tokens WHERE client_id = ?", (client_id,)
             )
 
+        # create table if not exists issued_tokens (encoded_code, me, now, client_id, expires, h_app, scope);
         cursor.execute(
             "INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
@@ -320,7 +312,7 @@ def generate_key():
                 client_id,
                 int(time.time()) + 3600,
                 json.dumps(h_app_item),
-                "" # scope
+                "",  # scope
             ),
         )
 
@@ -329,13 +321,6 @@ def generate_key():
             f"<p>Your token was successfully issued.</p><p>Your new token is: {encoded_code}"
         )
         return redirect("/issued")
-
-    if config.WEBHOOK_SERVER and config.WEBHOOK_SERVER == True:
-        data = {"message": f"{me} has issued an access token to {client_id}"}
-
-        headers = {"Authorization": f"Bearer {config.WEBHOOK_ACCESS_TOKEN}"}
-
-        requests.post(config.WEBHOOK_URL, data=data, headers=headers)
 
     return redirect(redirect_uri.strip("/") + f"?code={encoded_code}&state={state}")
 
@@ -355,7 +340,7 @@ def revoke_from_user_interface():
             cursor.execute("DELETE FROM issued_tokens")
         else:
             cursor.execute(
-                "DELETE FROM issued_tokens WHERE token = ?", (token_to_revoke,)
+                "DELETE FROM issued_tokens WHERE encoded_code = ?", (token_to_revoke,)
             )
 
     r = requests.post(
@@ -378,67 +363,9 @@ def token_endpoint():
 
         if authorization is None:
             return jsonify({"error": "invalid_request"})
-        
+
         grant_type = request.args.get("grant_type")
         me = request.args.get("me")
-
-        if grant_type == "ticket":
-            ticket = request.args.get("ticket")
-
-            if not me:
-                return jsonify({"error": "invalid_request"})
-
-            if not ticket:
-                return jsonify({"error": "invalid_request"})
-
-            db = sqlite3.connect("tokens.db")
-
-            with db:
-                cursor = db.cursor()
-
-                ticket = cursor.execute(
-                    "SELECT * FROM tickets WHERE token = ?", (ticket,)
-                ).fetchone()
-
-                # ticket[0] is ticket
-                # ticket[1] is scope
-
-                if not ticket:
-                    return jsonify({"error": "invalid_ticket"}), 400
-                
-                response = indieweb_utils.generate_auth_token(
-                    me,
-                    client_id,
-                    redirect_uri,
-                    "id",
-                    "state",
-                    "S256",
-                    ticket[1],
-                    config.SECRET_KEY,
-                )
-
-                encoded_code = response.code
-
-                # save in db as issued token
-
-                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-                cursor.execute(
-                    "INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    (
-                        encoded_code,
-                        me,
-                        now,
-                        client_id,
-                        int(time.time()) + 3600,
-                        json.dumps({}),
-                        resource,
-                    ),
-                )
-
-                authorization = encoded_code
-
-                return jsonify({"access_token": authorization, "token_type": "Bearer", "scope": ticket[1], "me": me})
 
         connection = sqlite3.connect("tokens.db")
 
@@ -486,7 +413,7 @@ def token_endpoint():
                         "profile": asdict(parsed_profile),
                     }
                 )
-            
+
         response = {"me": me.strip("/") + "/", "client_id": client_id, "scope": scope}
 
         db = sqlite3.connect("tokens.db")
@@ -562,55 +489,18 @@ def token_endpoint():
         {"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me}
     )
 
-@app.route("/ticket-issuance")
-def issue_ticket():
-    if request.method == "POST":
-        db = sqlite3.connect("tokens.db")
-
-        with db:
-            cursor = db.cursor()
-
-            issuance_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            # resource is the scope
-            cursor.execute(
-                "INSERT INTO tickets VALUES (?, ?, ?, ?)",
-                (request.form.get("ticket"), request.form.get("resource"), issuance_time, request.form.get("subject")),
-            )
-
-            endpoints = indieweb_utils.discover_endpoints(
-                request.form.get("target"), ["ticket_endpoint"]
-            )
-
-            ticket_endpoint = endpoints.get("ticket_endpoint")
-
-            # make http request to send ticket
-            try:
-                requests.post(
-                    ticket_endpoint,
-                    data={"ticket": request.form.get("ticket"), "resource": request.form.get("resource"), "subject": request.form.get("subject")},
-                )
-            except:
-                return jsonify({"error": "invalid_request"})
-            
-        # alert get_flashed_messages message
-        flash("Your ticket was successfully issued.")
-            
-        return render_template("ticket_issuance.html", title="Issue a Ticket")
-    
-    return render_template("ticket_issuance.html", title="Issue a Ticket")
 
 @app.route("/.well-known/oauth-authorization-server")
 def oauth_authorization_server():
     oauth_server = {
-        "authorization_endpoint": "https://auth.jamesg.blog/auth",
+        "authorization_endpoint": config.AUTH_SERVER_URL,
         "code_challenge_methods_supported": ["S256"],
         "grant_types_supported": ["authorization_code"],
-        "issuer": "https://auth.jamesg.blog/auth",
+        "issuer": config.AUTH_SERVER_URL,
         "response_modes_supported": ["query"],
         "response_types_supported": ["code"],
         "scopes_supported": SCOPE_DEFINITIONS,
-        "token_endpoint": "https://auth.jamesg.blog/token",
+        "token_endpoint": config.TOKEN_SERVER_URL,
     }
 
     return jsonify(oauth_server)

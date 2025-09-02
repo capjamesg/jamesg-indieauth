@@ -2,12 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}IndieAuth Endpoint{% endif %}</title>
+    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}Artemis Auth{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" />
-
-    <link rel="webmention" href="https://webmention.jamesg.blog/endpoint" />
+    <link rel="icon" href="https://artemis.jamesg.blog/assets/mascot-newspaper.svg" />
 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
   </head>
@@ -15,15 +13,11 @@
     <main>
       <a href="#main" class="accessibility_label_top">Skip to main content</a>
       <nav>
-        <p><a href="/">SnackAuth</a></p>
+        <p><a href="/">Artemis Auth</a></p>
         {% if session.get("logged_in") == True %}
         <ul>
           <li><a href="/issued">Issued Tokens</a></li>
           <li><a href="/logout">Logout</a></li>
-        </ul>
-        {% else %}
-        <ul>
-          <li><a href="/login">Login</a></li>
         </ul>
         {% endif %}
       </nav>

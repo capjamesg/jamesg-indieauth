@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Login</h1>
+<h1>Sign in with your email</h1>
 <section>
     {% with messages = get_flashed_messages() %}
        {% if messages %}
@@ -11,12 +11,11 @@
           </ul>
        {% endif %}
     {% endwith %}
-    <form method="POST" action="{{ url_for('user_auth.login') }}">
-        <p>To log in, please provide your domain name.</p>
-        <p>Your domain must include at least one rel="me" link on its home page for authentication to work.</p>
-        {{ ask_for_domain_form.csrf_token }}
-        {{ ask_for_domain_form.domain.label }} {{ ask_for_domain_form.domain() }}<br>
-        {{ ask_for_domain_form.submit() }}
+    <form method="POST" action="{{ url_for('callbacks.email_auth') }}">
+        <p>To log in, please provide the code sent to your email.</p>
+        {{ email_verification_form.csrf_token }}
+        {{ email_verification_form.code.label }} {{ email_verification_form.code() }}<br>
+        {{ email_verification_form.submit() }}
     </form>
 </section>
 <script>
