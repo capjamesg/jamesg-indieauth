@@ -1,7 +1,6 @@
 import indieweb_utils
-from flask import Blueprint, flash, redirect, render_template, request, session
+from flask import Blueprint, redirect, render_template, request, session
 
-from config import ME
 from forms import AskForDomain
 
 user_auth = Blueprint("user_auth", __name__)
@@ -53,6 +52,6 @@ def rel_login_stage():
     return render_template(
         "authentication_flow/login.html",
         rel_me_links=rel_me_links,
-        me=ME,
+        me=session.get("rel_me_check"),
         title="Authenticate with a rel=me link",
     )

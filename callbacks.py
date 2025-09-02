@@ -6,7 +6,7 @@ from flask import (Blueprint, flash, redirect, render_template, request,
                    session, url_for)
 
 from config import (EMAIL_SENDER, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
-                    GITHUB_OAUTH_REDIRECT, ME, POSTMARK_API_KEY)
+                    GITHUB_OAUTH_REDIRECT, POSTMARK_API_KEY)
 from forms import EmailVerificationCode
 from helpers import is_authenticated_as_allowed_user
 
@@ -57,13 +57,13 @@ def github_callback():
     me = user.get("login")
     me_url = "https://github.com/" + me
 
-    signed_in_with_correct_user = is_authenticated_as_allowed_user(me_url)
+    signed_in_with_correct_user = is_authenticated_as_allowed_user(me, me_url)
 
     if signed_in_with_correct_user is False:
         flash("You are not signed in with the correct user.")
         return redirect("/login")
 
-    session["me"] = ME
+    session["me"] = session.get("rel_me_check")
     session["logged_in"] = True
 
     if session.get("user_redirect"):
@@ -129,7 +129,7 @@ def email_auth():
 
     if email_verification_form.validate_on_submit():
         if email_verification_form.code.data == session.get("set_email_code"):
-            session["me"] = session.get("me")
+            session["me"] = session.get("rel_me_check")
             session["logged_in"] = True
 
             if session.get("user_redirect"):
