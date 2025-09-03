@@ -1,6 +1,6 @@
 import indieweb_utils
 from flask import Blueprint, redirect, render_template, request, session
-
+import re
 from forms import AskForDomain
 
 user_auth = Blueprint("user_auth", __name__)
@@ -12,6 +12,17 @@ def login():
 
     if request.args.get("r"):
         session["user_redirect"] = request.args.get("r")
+
+        # if has me, redirect to /rel
+        if request.args.get("me"):
+            # url is all text after https://alto.jamesg.blog/login root domain
+            url = request.url
+            url = url.split("login?r=")[-1]
+            # if url doesn't start with http[s]://alto.jamesg.blog, break
+            if re.match(r"^https?://alto\.jamesg\.blog", url):
+                session["redirect_after_auth"] = url
+                session["rel_me_check"] = request.args.get("me")
+                return redirect("/rel")
 
     if session.get("rel_me_check"):
         return redirect("/rel")
@@ -29,7 +40,7 @@ def login():
 
     return render_template(
         "authentication_flow/ask_for_domain.html",
-        title="Login to the Artemis Auth Server",
+        title="Login to the Alto Server",
         ask_for_domain_form=ask_for_domain_form,
     )
 

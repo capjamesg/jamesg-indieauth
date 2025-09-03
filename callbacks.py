@@ -57,7 +57,7 @@ def github_callback():
     me = user.get("login")
     me_url = "https://github.com/" + me
 
-    signed_in_with_correct_user = is_authenticated_as_allowed_user(me, me_url)
+    signed_in_with_correct_user = is_authenticated_as_allowed_user(session.get("rel_me_check"), me_url)
 
     if signed_in_with_correct_user is False:
         flash("You are not signed in with the correct user.")
@@ -88,7 +88,7 @@ def email_auth():
             session["set_email_code"] = random_code
             message = f"""<p>Hello there,</p>
 
-            <p>Artemis Auth wants you to sign in as {me}.</p>
+            <p>Alto wants you to sign in as {me}.</p>
 
             <p>To sign in, enter the following code:</p>
 
@@ -105,7 +105,7 @@ def email_auth():
             data = {
                 "From": EMAIL_SENDER,
                 "To": email,
-                "Subject": "Sign in with Artemis Auth",
+                "Subject": "Sign in with Alto",
                 "HtmlBody": message,
                 "MessageStream": "outbound",
             }

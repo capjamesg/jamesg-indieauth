@@ -16,57 +16,61 @@
           </ul>
        {% endif %}
     {% endwith %}
-    <p>View the tokens you have issued from this endpoint.</p>
+    <p>You are signed in as <code>{{ me }}</code>.</p>
+    <p>View the tokens you have issued from this endpoint below.</p>
     {% if issued_tokens %}
         <table>
             <thead>
                 <tr>
-                    <th>URL Authorized</th>
-                    <th>Issued On</th>
                     <th>Issued To</th>
+                    <th>Issued On</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
                 {% for token in issued_tokens %}
                 <tr>
-                    <td data-label="User Login">{{ token[1] }}</td>
-                    <td data-label="Site You Logged Into">{{ token[3] }}</td>
+                    <td data-label="Site You Logged Into"><a href="{{ token[3] }}">{{ token[3] }}</a></td>
                     <td data-label="Time Token Was Issued">{{ token[2] }}</td>
-                    <td><a href="/issued?token={{ token[0] }}">See Action</a></td>
                     <td><a href="/revoke?token={{ token[0] }}">Revoke</a></td>
                 </tr>
                 {% endfor %}
+            </tbody>
         </table>
-        <p><a href="/revoke?token=all">Revoke all tokens</a>.</p>
+        <details style="margin-top: 3rem;">
+            <summary>Advanced Options</summary>
+            <p>You can <a href="/revoke?token=all">revoke all tokens</a>.</p>
+        </details>
     {% else %}
         <p>You have not issued any tokens yet.</p>
     {% endif %}
-    <h2>Issue a Token</h2>
-    <p>Use the form below to issue a token.</p>
-    <form action="/generate" method="POST">
-        <label for="client_id">Client ID:</label>
-        <input type="url" name="client_id" id="client_id" placeholder="https://jamesg.blog" />
-        <label for="redirect_uri">Redirect URI:</label>
-        <input type="url" name="redirect_uri" id="redirect_uri" placeholder="https://jamesg.blog/callback" />
-        <label for="scope">Scope(s), seperated by spaces:</label>
-        <input type="text" name="scope" id="scope" placeholder="create update delete" />
-        <details>
-            <summary>Common Scope Definitions</summary>
-            <p>Here are the common scopes that applications may need:</p>
-            <ul>
-                {% for scope_name, description in SCOPE_DEFINITIONS.items() %}
-                    <li>{{ scope_name }}: {{ description }}</li>
-                {% endfor %}
-            </ul>
-        </details><br>
-        <input type="hidden" name="me" value="{{ session.get('me') }}" />
-        <input type="hidden" name="response_type" value="code" />
-        <input type="hidden" name="code_challenge" value="" />
-        <input type="hidden" name="code_challenge_method" value="" />
-        <input type="hidden" name="is_manually_issued" value="true" />
-        <input type="hidden" name="state" value="" />
-        <input type="submit" value="Issue Token" />
-    </form>
+    <details>
+        <summary>Issue a Token</summary>
+        <p>Use the form below to issue a token.</p>
+        <form action="/generate" method="POST">
+            <label for="client_id">Client ID:</label>
+            <input type="url" name="client_id" id="client_id" placeholder="https://jamesg.blog" />
+            <label for="redirect_uri">Redirect URI:</label>
+            <input type="url" name="redirect_uri" id="redirect_uri" placeholder="https://jamesg.blog/callback" />
+            <label for="scope">Scope(s), seperated by spaces:</label>
+            <input type="text" name="scope" id="scope" placeholder="create update delete" />
+            <details>
+                <summary>Common Scope Definitions</summary>
+                <p>Here are the common scopes that applications may need:</p>
+                <ul>
+                    {% for scope_name, description in SCOPE_DEFINITIONS.items() %}
+                        <li>{{ scope_name }}: {{ description }}</li>
+                    {% endfor %}
+                </ul>
+            </details><br>
+            <input type="hidden" name="me" value="{{ session.get('me') }}" />
+            <input type="hidden" name="response_type" value="code" />
+            <input type="hidden" name="code_challenge" value="" />
+            <input type="hidden" name="code_challenge_method" value="" />
+            <input type="hidden" name="is_manually_issued" value="true" />
+            <input type="hidden" name="state" value="" />
+            <input type="submit" value="Issue Token" />
+        </form>
+    </details>
 </section>
 {% endblock %}

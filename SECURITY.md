@@ -1,4 +1,4 @@
-# Artemis Auth Security Policy
+# Alto Security Policy
 
 This security policy outlines how to report vulnerabilities to project maintainers and the response you can expect after disclosing an issue.
 

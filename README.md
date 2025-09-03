@@ -1,6 +1,6 @@
-# Artemis Auth
+# Alto
 
-Artemis Auth is an open source [IndieAuth](https://indieauth.spec.indieweb.org) server that will power the Artemis web sign in authentication system.
+Alto is an open source [IndieAuth](https://indieauth.spec.indieweb.org) server that will power the Artemis web sign in authentication system.
 
 Using this project, you can authenticate yourself to a service by using [RelMeAuth](https://indieweb.org/RelMeAuth). RelMeAuth requires you have rel="me" links on your blog that link to social profiles. At the moment, this project supports the following rel=me links:
 

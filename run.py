@@ -9,7 +9,7 @@ from config import SECRET_KEY
 from user_auth import user_auth as user_auth_blueprint
 
 app = Flask(__name__)
-csrf = CSRFProtect(app)
+# csrf = CSRFProtect(app)
 
 # read config.py file
 app.config.from_pyfile(os.path.join(".", "config.py"), silent=False)
@@ -40,4 +40,4 @@ def server_error(e):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5070)

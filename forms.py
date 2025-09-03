@@ -1,13 +1,13 @@
 from flask_wtf import FlaskForm
-from wtforms import HiddenField, StringField, SubmitField
+from wtforms import HiddenField, URLField, SubmitField, StringField
 from wtforms.validators import URL, DataRequired
 
 
 class AskForDomain(FlaskForm):
-    domain = StringField(
-        "domain",
+    domain = URLField(
+        "Your domain name",
         validators=[DataRequired(), URL(require_tld=True)],
-        render_kw={"placeholder": "Your domain name"},
+        render_kw={"placeholder": "example.com"},
     )
     submit = SubmitField("Login")
 

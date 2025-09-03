@@ -1,5 +1,5 @@
 :root {
-	--primary-color: light-dark(darkgreen, lightgreen);
+	--primary-color: rgb(177, 87, 218);
 }
 & {
 	border-top: 0.25rem solid var(--primary-color);
@@ -7,11 +7,24 @@
 }
 * {
 	line-height: 1.5;
+	color: light-dark(black, #dadada);
 }
 
 html, body, header, figure {
 	margin: 0;
 	word-wrap: break-word;
+}
+.side-by-side {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-top: 5rem;
+}
+pre {
+	text-wrap: wrap;
+}
+.side-by-side > * {
+	flex: 1;
 }
 a {
 	text-decoration: none;
@@ -35,7 +48,7 @@ button {
 	cursor: pointer;
 	margin-bottom: 1rem;
 	justify-content: center;
-	color: light-dark(white, black);
+	color: light-dark(black, black);
 	background-color: var(--primary-color);
 	border: none;
 	border-radius: 0.25rem;
@@ -85,22 +98,16 @@ small code {
 	font-size: small;
 }
 main {
-	max-width: 100vh;
-	width: 85%;
+	max-width: 35rem;
 	margin: auto;
-	margin-top: 10px;
+	padding: 1rem;
 }
 p, code, li {
 	font-size: 1.0625rem;
 	word-wrap: break-word;
-  }
-td {
-    padding: 10px;
 }
 table {
-	border: 1px solid lightgrey;
 	border-radius: 10px;
-	padding: 10px;
 	table-layout: fixed;
 	width: 100%;
 }
@@ -201,7 +208,6 @@ a:focus {
 	background-color: var(--primary-color);
 	color: white;
 	outline: lightblue 2px;
-	border-bottom: 2px dotted black;
 }
 
 button:focus, input[type="submit"]:focus {
@@ -222,15 +228,16 @@ select {
 }
 
 a:hover {
-	color: rgb(65, 182, 65);
+	color: rgb(92, 65, 182);
 }
 a:hover svg {
-	fill: rgb(65, 182, 65);
+	fill: rgb(92, 65, 182);
 }
 input[type="text"], input[type="username"], input[type="password"], input[type="url"], textarea {
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 10px;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+	margin-bottom: 0.25rem;
+	border: 1px solid lightgrey;
     display: inline-block;
     text-align: left;
     min-width: 50%;
@@ -300,6 +307,9 @@ section li {
 	border: 2px solid lightgreen;
 }
 
+tr {
+	text-align: left;
+}
 /* Reponsive table code below from https://allthingssmitty.com/2016/10/03/responsive-table-layout/ */
 @media screen and (max-width: 900px) {
 	table thead {

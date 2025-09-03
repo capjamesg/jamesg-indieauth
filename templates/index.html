@@ -1,15 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Artemis Auth</h1>
-<p>Artemis Auth is an <a href="https://indieweb.org/IndieAuth">IndieAuth server</a>.</p>
-<p>Using Artemis Auth, you can verify your identity using your domain name, and issue tokens for services to use that support IndieAuth.</p>
-<p>To get started, add the following meta tags to your website:</p>
+<h1>Alto</h1>
+<p>Alto lets you verify your identity using your domain name.</p>
+<p>To get started, add the following meta tags to the <code>head</code> tag on your website:</p>
 <pre>
-&lt;link rel=&quot;authorization_endpoint&quot; href=&quot;{{ AUTH_SERVER_URL }}&quot;&gt;
-&lt;link rel=&quot;token_endpoint&quot; href=&quot;{{ TOKEN_SERVER_URL }}&quot;&gt;
+&lt;link rel=&quot;authorization_endpoint&quot;
+    href=&quot;{{ AUTH_SERVER_URL }}&quot;&gt;
+
+&lt;link rel=&quot;token_endpoint&quot;
+    href=&quot;{{ TOKEN_SERVER_URL }}&quot;&gt;
 </pre>
-<p>When you sign into a service that supports web sign in (i.e. <a href="https://artemis.jamesg.blog">the Artemis web reader</a>), you will be able to log in using Artemis Auth.</p>
+<p>You will also need to add a <code>rel=me</code> link that is either an email or GitHub link, like:</p>
+<pre>
+&lt;link rel=&quot;me&quot;
+    href=&quot;mailto:example@example.com&quot;&gt;
+</pre>
+<p>When you sign into a service that supports <a href="https://indieweb.org/Web_sign-in">web sign in</a> (i.e. <a href="https://artemis.jamesg.blog">the Artemis web reader</a>), you will be able to log in using Alto.</p>
 <footer>
-    <p>This service was made with love of the web by <a href="https://jamesg.blog" rel="source repository">capjamesg</a>. <a href="https://github.com/capjamesg/artemis-auth">View source</a>.</p>
+    <p>This service was made with love of the web by <a href="https://jamesg.blog" rel="source repository">capjamesg</a>. <a href="https://github.com/capjamesg/alto">View source</a>.</p>
 </footer>
 {% endblock %}

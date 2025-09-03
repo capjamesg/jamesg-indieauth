@@ -70,15 +70,18 @@ def authorization_endpoint():
         scope = request.args.get("scope")
 
         if not client_id or not redirect_uri or not response_type or not state:
+            print("missing data")
             return jsonify({"error": "invalid_request."})
 
         if response_type != "code" and response_type != "id":
+            print("invalid response type")
             return jsonify({"error": "invalid_request"})
 
         try:
             client_id_app = requests.get(client_id)
-        except:
-            return jsonify({"error": "invalid_request"})
+        except Exception as e:
+            client_id_app = None
+            # return jsonify({"error": "invalid_request"})
 
         h_app_item = None
 
@@ -118,22 +121,49 @@ def authorization_endpoint():
                         confirmed_redirect_uri = True
 
             if not confirmed_redirect_uri:
+                print('not confirmed redirect uri')
                 return jsonify({"error": "invalid_request"})
 
-        if client_id_app.status_code == 200:
-            try:
-                h_app_item = indieweb_utils.get_h_app_item(client_id_app.text)
-            except:
-                h_app_item = {}
-
-                if client_id.endswith("/client.json"):
-                    client_file = requests.get(client_id).json()
-
+        if client_id_app and client_id_app.status_code == 200:
+            # if client id is json, return it
+            if client_id_app.headers.get("Content-Type") == "application/json":
+                response = client_id_app.json()
+                h_app_item = {
+                    "name": response.get("client_name"),
+                    "logo": response.get("client_logo"),
+                    "url": response.get("client_uri"),
+                    "summary": response.get("client_description"),
+                }
+            else:
+                try:
+                    response = indieweb_utils.get_h_app_item(client_id_app.text)
                     h_app_item = {
-                        "logo": client_file["client_logo"],
-                        "name": client_file["client_name"],
-                        "url": client_file["client_uri"],
+                        "name": response.name,
+                        "logo": response.logo,
+                        "url": response.url,
+                        "summary": response.summary,
                     }
+                except:
+                    h_app_item = {}
+
+                    if client_id.endswith("/client.json"):
+                        client_file = requests.get(client_id).json()
+
+                        h_app_item = {
+                            "logo": client_file["client_logo"],
+                            "name": client_file["client_name"],
+                            "url": client_file["client_uri"],
+                        }
+
+        # set value of form fields
+        confirm_auth_form.me.data = session.get("me")
+        confirm_auth_form.client_id.data = client_id
+        confirm_auth_form.redirect_uri.data = redirect_uri
+        confirm_auth_form.response_type.data = response_type
+        confirm_auth_form.state.data = state
+        confirm_auth_form.code_challenge.data = code_challenge
+        confirm_auth_form.code_challenge_method.data = code_challenge_method
+        confirm_auth_form.scope.data = scope
 
         return render_template(
             "authentication_flow/confirm_auth.html",
@@ -146,13 +176,14 @@ def authorization_endpoint():
             code_challenge=code_challenge,
             code_challenge_method=code_challenge_method,
             h_app_item=h_app_item,
+            confirm_auth_form=confirm_auth_form,
             SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
             title=f"Authenticate to {client_id.replace('https://', '').replace('http://', '').strip()}",
         )
 
-    if not confirm_auth_form.validate_on_submit():
-        flash("There was an error with your submission.")
-        return redirect("/login")
+    # if not confirm_auth_form.validate_on_submit():
+    #     flash("There was an error with your submission.")
+    #     return redirect("/login")
 
     grant_type = request.form.get("grant_type")
     code = request.form.get("code")
@@ -182,7 +213,7 @@ def authorization_endpoint():
         return jsonify({"error": "invalid_grant"})
 
     try:
-        indieweb_utils._verify_decoded_code(
+        indieweb_utils.indieauth.server._verify_decoded_code(
             client_id,
             redirect_uri,
             decoded_code["client_id"],
@@ -207,7 +238,7 @@ def view_issued_tokens():
             cursor = connection.cursor()
 
             issued_tokens = cursor.execute(
-                "SELECT * FROM issued_tokens WHERE encoded_code = ?", (token,)
+                "SELECT * FROM issued_tokens WHERE encoded_code = ? AND me = ?", (token, session.get("me"))
             ).fetchone()
 
             if len(issued_tokens) == 0:
@@ -230,14 +261,14 @@ def view_issued_tokens():
 
     with connection:
         cursor = connection.cursor()
-
-        issued_tokens = cursor.execute("SELECT * FROM issued_tokens").fetchall()
+        issued_tokens = cursor.execute("SELECT * FROM issued_tokens WHERE me = ?", (session.get("me"),)).fetchall()
 
     return render_template(
         "admin/issued.html",
         title="Issued Tokens",
         issued_tokens=issued_tokens,
         SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
+        me=session.get("me")
     )
 
 
@@ -252,6 +283,7 @@ def generate_key():
     response_type = request.form.get("response_type")
     state = request.form.get("state")
     code_challenge_method = request.form.get("code_challenge_method")
+    code_challenge = request.form.get("code_challenge")
     scope = request.form.get("scope").lower()
     is_manually_issued = request.form.get("is_manually_issued")
 
@@ -271,10 +303,12 @@ def generate_key():
             code_challenge_method,
             final_scope,
             config.SECRET_KEY,
+            code_challenge
         )
 
         encoded_code = response.code
-    except Exception:
+    except Exception as e:
+        print(e)
         return jsonify({"error": "invalid_request"})
 
     try:
@@ -452,22 +486,7 @@ def token_endpoint():
     redirect_uri = request.form.get("redirect_uri")
     code_verifier = request.form.get("code_verifier")
 
-    if grant_type == "authorization_code":
-        access = "all"
-    else:
-        db = sqlite3.connect("tokens.db")
-
-        with db:
-            cursor = db.cursor()
-
-            ticket = cursor.execute(
-                "SELECT * FROM tickets WHERE token = ?", (code,)
-            ).fetchone()
-
-            if not ticket:
-                return jsonify({"error": "invalid_ticket"}), 400
-
-            access = ticket[1]
+    access = "all"
     try:
         redeem_code = indieweb_utils.redeem_code(
             grant_type,
@@ -482,7 +501,8 @@ def token_endpoint():
         access_token = redeem_code.access_token
         scope = redeem_code.scope
         me = redeem_code.me
-    except Exception:
+    except Exception as e:
+        print(e)
         return jsonify({"error": "invalid_request"})
 
     return jsonify(

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}Artemis Auth{% endif %}</title>
+    <title>{% if get_flashed_messages() %}{{ get_flashed_messages()[0] }} - {% endif %}{% if title %}{{ title }}{% else %}Alto{% endif %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 
     <link rel="icon" href="https://artemis.jamesg.blog/assets/mascot-newspaper.svg" />
@@ -13,7 +13,7 @@
     <main>
       <a href="#main" class="accessibility_label_top">Skip to main content</a>
       <nav>
-        <p><a href="/">Artemis Auth</a></p>
+        <p><a href="/">Alto</a></p>
         {% if session.get("logged_in") == True %}
         <ul>
           <li><a href="/issued">Issued Tokens</a></li>

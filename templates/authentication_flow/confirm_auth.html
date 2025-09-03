@@ -36,8 +36,10 @@
         {{ confirm_auth_form.response_type() }}
         {{ confirm_auth_form.code_challenge() }}
         {{ confirm_auth_form.code_challenge_method() }}
-        <button type="submit"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg> Authorize</button>
-        <a href="{{ client_id }}"><button class="cancel"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="#000000" viewBox="0 0 256 256"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"></path></svg> Cancel</button></a>
+        <div class="side-by-side">
+            <a href="{{ client_id }}"><button class="cancel" style="padding: 0.25rem;">Cancel</button></a>
+            <button type="submit" style="background: rgb(87, 218, 87);">Sign in</button>
+        </div>
         <small>You will be redirected to <code>{{ redirect_uri }}</code> after signing in.</small>
     </form>
 </section>
