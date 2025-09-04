@@ -2,20 +2,18 @@
 {% block content %}
 <h1>Sign in with your email</h1>
 <section>
-    {% with messages = get_flashed_messages() %}
-       {% if messages %}
-          <ul class="message">
-          {% for message in messages %}
-             <li>{{ message }}</li>
-          {% endfor %}
-          </ul>
-       {% endif %}
-    {% endwith %}
     <form method="POST" action="{{ url_for('callbacks.email_auth') }}">
-        <p>To log in, please provide the code sent to your email.</p>
-        {{ email_verification_form.csrf_token }}
-        {{ email_verification_form.code.label }} {{ email_verification_form.code() }}<br>
-        {{ email_verification_form.submit() }}
+      {% if representative_h_card %}
+      <section class="profile-card">
+         <img src="{{ representative_h_card["photo"] }}" alt="Profile photo for {{ name }}" height="100" width="100" />
+         <p>{{ representative_h_card["name"] }} (<a href="{{ session.get("rel_me_check") }}">{{ session.get("rel_me_check") }}</a>)</p>
+      </section>
+      {% endif %}
+      <p>To sign in as <code>{{ session.get("rel_me_check") }}</code>, enter the verification code sent to your email address.</p>
+      {{ email_verification_form.csrf_token }}
+      {{ email_verification_form.code.label }} {{ email_verification_form.code() }}<br>
+      {{ email_verification_form.submit() }}
+      <small>If you did not receive an email, <a href="{{ url_for('callbacks.email_auth') }}?no_resend=false">click here</a> to send another email.</small>
     </form>
 </section>
 <script>

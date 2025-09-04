@@ -1,18 +1,42 @@
 :root {
-	--primary-color: rgb(177, 87, 218);
+	--primary-color: light-dark(rgb(167, 75, 209), rgb(217, 141, 252));
 }
 & {
-	border-top: 0.25rem solid var(--primary-color);
+	border-top: 0.5rem solid var(--primary-color);
 	color-scheme: light dark;
 }
 * {
 	line-height: 1.5;
 	color: light-dark(black, #dadada);
 }
-
+.profile-card {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+.profile-card img {
+	height: 3rem;
+	width: 3rem;
+}
+nav img {
+	height: 1.5rem;
+	width: 1.5rem;
+}
+.flex {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
 html, body, header, figure {
 	margin: 0;
 	word-wrap: break-word;
+}
+body {
+	padding-bottom: 3rem;
+}
+td {
+	align-items: center;
 }
 .side-by-side {
 	display: flex;
@@ -38,7 +62,7 @@ h1 ~ * {
 label {
 	cursor: pointer;
 }
-button {
+button, .button {
 	display: flex;
 	align-items: center;
 	gap: 1rem;
@@ -52,12 +76,18 @@ button {
 	background-color: var(--primary-color);
 	border: none;
 	border-radius: 0.25rem;
+	text-decoration: none;
+	padding: 0.5rem 0;
 }
 svg {
 	fill: light-dark(white, black);
 }
 .cancel {
 	background-color: rgb(255, 104, 104) !important;
+}
+.cancel:hover {
+	text-decoration: none;
+	color: white;
 }
 a:has(button) {
 	text-decoration: none;
@@ -108,12 +138,22 @@ p, code, li {
 }
 table {
 	border-radius: 10px;
-	table-layout: fixed;
+	/* table-layout: fixed; */
 	width: 100%;
 }
 details {
 	width: 100%;
 	box-sizing: border-box;
+}
+h2 {
+	margin-bottom: 0.5rem;
+	margin-top: 3rem;
+}
+h2:first-of-type {
+	margin-top: 1rem;
+}
+h2 + * {
+	margin-top: 0;
 }
 .message {
 	border: 2px solid lightgrey;
@@ -123,11 +163,15 @@ nav {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	margin: 10px 0;
+	margin-bottom: 2rem;
+	flex-wrap: wrap;
+	gap: 1rem;
 }
-nav ul li {
-	display: inline-block;
-	padding-left: 10px;
+nav ul {
+	display: flex;
+	flex-direction: row;
+	gap: 1rem;
+	flex-wrap: wrap;
 }
 /* skip link hiding code from https://www.a11ymatters.com/pattern/skip-link/ */
 .accessibility_label_top {
@@ -207,12 +251,11 @@ footer {
 a:focus {
 	background-color: var(--primary-color);
 	color: white;
-	outline: lightblue 2px;
 }
 
 button:focus, input[type="submit"]:focus {
-	background-color: yellow;
-	color: black;
+	background-color: var(--primary-color);
+	color: white;
 	outline: 3px var(--primary-color) solid;
 }
 pre {
@@ -228,10 +271,10 @@ select {
 }
 
 a:hover {
-	color: rgb(92, 65, 182);
+	color: rgb(151, 124, 241);
 }
 a:hover svg {
-	fill: rgb(92, 65, 182);
+	fill: rgb(151, 124, 241);
 }
 input[type="text"], input[type="username"], input[type="password"], input[type="url"], textarea {
     padding: 0.25rem;
@@ -306,12 +349,27 @@ section li {
 .green_border {
 	border: 2px solid lightgreen;
 }
-
+.green-button {
+	background-color: rgb(87, 218, 87);
+}
 tr {
 	text-align: left;
 }
+tr td:first-child {
+	display: flex;
+	gap: 0.5rem;
+}
+nav ul *, nav ul, nav p {
+	margin: 0;
+}
+.message {
+	list-style: none;
+}
+td, tr {
+	padding-right: 0.5rem;
+}
 /* Reponsive table code below from https://allthingssmitty.com/2016/10/03/responsive-table-layout/ */
-@media screen and (max-width: 900px) {
+@media screen and (max-width: 700px) {
 	table thead {
 		border: none;
 		clip: rect(0 0 0 0);
@@ -322,21 +380,35 @@ tr {
 		position: absolute;
 		width: 1px;
 	}
-
-	table tr {
-		border-bottom: 1px solid #ddd;
+	tr td:first-child {
 		display: block;
 	}
 
+	table tr {
+		border: 1px solid #878787;
+		display: block;
+		margin-bottom: 1rem;
+		padding: 0.25rem;
+	}
+
 	table td {
-		border-bottom: 1px solid #ddd;
+		border-bottom: 1px solid #878787;
 		display: block;
 		text-align: right;
+	}
+	table td:last-child {
+		border-bottom: 0;
 	}
 
 	table td::before {
 		content: attr(data-label);
 		float: left;
+	}
+	.side-by-side {
+		margin-top: 1rem;
+	}
+	h1 {
+		font-size: 1.5rem;
 	}
 }
   

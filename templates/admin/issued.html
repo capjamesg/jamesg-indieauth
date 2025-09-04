@@ -1,11 +1,23 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-    #main {
-        max-width: none;
+    main, #main {
+        max-width: 50rem;
     }
 </style>
-<h1>Issued Tokens</h1>
+<h1>Alto Settings</h1>
+<h2>Your Account</h2>
+<section class="profile-card">
+{% if session.get("h_card", {}).get("photo") %}
+    <img src="{{ session.get("h_card").get("photo") }}" alt="Profile Picture" height="3rem"/>
+{% endif %}
+{% if session.get("h_card", {}).get("name") %}
+    <p>You are signed in as {{ session.get("h_card", {}).get("name") }} (<a href="{{ session.get("me") }}">{{ session.get("me") }}</a>).</p>
+{% else %}
+    <p>You are signed in as <a href="{{ session.get("me") }}">{{ session.get("me") }}</a>.</p>
+{% endif %}
+</section>
+<h2>Sessions</h2>
 <section>
     {% with messages = get_flashed_messages() %}
        {% if messages %}
@@ -16,35 +28,32 @@
           </ul>
        {% endif %}
     {% endwith %}
-    <p>You are signed in as <code>{{ me }}</code>.</p>
-    <p>View the tokens you have issued from this endpoint below.</p>
+    <p>You have signed into the following sites with Alto:</p>
     {% if issued_tokens %}
         <table>
             <thead>
                 <tr>
                     <th>Issued To</th>
                     <th>Issued On</th>
-                    <th></th>
+                    <th>Scope(s)</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for token in issued_tokens %}
                 <tr>
-                    <td data-label="Site You Logged Into"><a href="{{ token[3] }}">{{ token[3] }}</a></td>
-                    <td data-label="Time Token Was Issued">{{ token[2] }}</td>
-                    <td><a href="/revoke?token={{ token[0] }}">Revoke</a></td>
+                    <td data-label="Issued To">{% if token[5] and token[5].logo %}<img src="{{ token[5].logo }}" style="height: 1rem; width: 1rem;" />{% endif %}<a href="{% if token[5] and token[5].url %}{{ token[5].url }}{% else %}{{ token[3] }}{% endif %}">{% if token[5] and token[5].name %}{{ token[5].name }}{% else %}{{ token[3] }}{% endif %}</a></td>
+                    <td data-label="Issued On">{{ token[2] }}</td>
+                    <td data-label="Scope(s)">{% if token[6] %}{{ token[6] }}{% else %}<em>None</em>{% endif %}</td>
+                    <td data-label="Actions"><a href="/revoke?token={{ token[0] }}">Revoke</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <details style="margin-top: 3rem;">
-            <summary>Advanced Options</summary>
-            <p>You can <a href="/revoke?token=all">revoke all tokens</a>.</p>
-        </details>
     {% else %}
-        <p>You have not issued any tokens yet.</p>
+        <p>You have not signed into any services with Alto yet.</p>
     {% endif %}
-    <details>
+    <details style="margin-top: 1rem;">
         <summary>Issue a Token</summary>
         <p>Use the form below to issue a token.</p>
         <form action="/generate" method="POST">

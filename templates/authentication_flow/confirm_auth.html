@@ -13,14 +13,14 @@
                 <p class="message">{{ h_app_item['summary'] }}</p>
             {% endif %}
         {% else %}
-        <h1>Authenticate to {{ client_id.replace("https://", "").replace("http://", "") }}</h1>
-            <p><a href="{{ client_id }}">{{ client_id.replace("https://", "").replace("http://", "") }}</a> is requesting your permission to authorize yourself as <a href="{{ session.get("me") }}">{{ session.get("me") }}</a>.</p>
+            <h1>Sign in to {{ client_id.replace("https://", "").replace("http://", "") }}</h1>
+            <p><a href="{{ client_id }}">{{ client_id.replace("https://", "").replace("http://", "") }}</a> is requesting your permission to sign in as <a href="{{ session.get("me") }}">{{ session.get("me") }}</a>.</p>
         {% endif %}
         {% if scope %}
         <p>This application is requesting the following scopes:</p>
-        <ul>
+        <ul class="rel_me_links">
             {% for i in scope.split(" ") %}
-                <li><label for="scope_{{ i }}"><input type="checkbox" name="scope_{{ i }}" id="scope_{{ i }}" checked="checked" /> <b>{{ i }}</b>{% if SCOPE_DEFINITIONS.get(i) %}: {{ SCOPE_DEFINITIONS.get(i) }}{% endif %}</label></li>
+                <li><label for="scope_{{ i }}"><input type="checkbox" name="scope_{{ i }}" id="scope_{{ i }}" checked="checked" /> <b>{{ i }}</b>: {% if SCOPE_DEFINITIONS.get(i) %}{{ SCOPE_DEFINITIONS.get(i) }}{% else %}<em>This scope has no description</em>{% endif %}.</label></li>
             {% endfor %}
         </ul>
         {% else %}
@@ -37,8 +37,8 @@
         {{ confirm_auth_form.code_challenge() }}
         {{ confirm_auth_form.code_challenge_method() }}
         <div class="side-by-side">
-            <a href="{{ client_id }}"><button class="cancel" style="padding: 0.25rem;">Cancel</button></a>
-            <button type="submit" style="background: rgb(87, 218, 87);">Sign in</button>
+            <a href="{% if h_app_item and h_app_item['url'] %}{{ h_app_item['url'] }}{% else %}{{ client_id }}{% endif %}" class="button cancel">Cancel</a>
+            <button type="submit" class="green-button">Sign in</button>
         </div>
         <small>You will be redirected to <code>{{ redirect_uri }}</code> after signing in.</small>
     </form>

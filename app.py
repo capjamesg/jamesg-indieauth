@@ -3,18 +3,52 @@ import json
 import sqlite3
 import time
 from dataclasses import asdict
+from datetime import timedelta
 from urllib.parse import urlparse as parse_url
 
 import indieweb_utils
 import jwt
 import requests
+import random
+import string
 from bs4 import BeautifulSoup
+from cachetools import TLRUCache
 from flask import (Blueprint, abort, flash, jsonify, redirect, render_template,
                    request, session)
 
 import config
+from cache import h_card_cache
 from forms import ConfirmAuth
 from scopes import SCOPE_DEFINITIONS
+
+def compose_profile_response(me, scope, response={}):
+    if "profile" in scope:
+        profile = {}
+        h_card = h_card_cache.get(me)
+
+    if h_card.get("name"):
+        profile["name"] = h_card.get("name")
+    if h_card.get("photo"):
+        profile["photo"] = h_card.get("photo")
+
+    response["profile"] = profile
+    # if email in scope
+    if "email" in scope and h_card.get("email"):
+        if not response.get("profile"):
+            response["profile"] = {}
+
+        response["profile"]["email"] = h_card.get("email")
+
+    return response
+
+def datetime_ttu(_key, value, now):
+    return now + timedelta(hours=1)
+
+
+client_information_cache = TLRUCache(
+    maxsize=100, ttu=datetime_ttu, timer=datetime.datetime.now
+)
+
 
 app = Blueprint("app", __name__)
 
@@ -27,11 +61,23 @@ def index():
         TOKEN_SERVER_URL=config.TOKEN_SERVER_URL,
     )
 
+@app.route("/accessibility")
+def accessibility():
+    return render_template("accessibility.html", title="Accessibility Statement")
+
+@app.route("/privacy")
+def privacy():
+    return render_template("privacy.html", title="Privacy Policy")
 
 @app.route("/logout")
 def logout():
     session.pop("logged_in", None)
     session.pop("me", None)
+    session.pop("h_card", None)
+    session.pop("user_redirect", None)
+    session.pop("redirect_after_auth", None)
+    session.pop("rel_me_check", None)
+    flash("You have been logged out.")
 
     return redirect("/")
 
@@ -48,17 +94,15 @@ def authorization_endpoint():
             and session.get("me")
             and request.args.get("me").strip("/") != session.get("me").strip("/")
         ):
-            session.pop("logged_in", None)
-            session.pop("me", None)
             flash(
                 f"""
                 {request.args.get('client_id')} is requesting you to sign in as {request.args.get('me')}.
                 Please sign in as {request.args.get('me')}.
             """
             )
-            return redirect(f"/login?r={request.url}")
+            return redirect(f"/logout?r={request.url}")
 
-        if session.get("logged_in") != True:
+        if not session.get("logged_in"):
             return redirect(f"/login?r={request.url}")
 
         client_id = request.args.get("client_id")
@@ -81,22 +125,22 @@ def authorization_endpoint():
             client_id_app = requests.get(client_id)
         except Exception as e:
             client_id_app = None
-            # return jsonify({"error": "invalid_request"})
 
-        h_app_item = None
+        h_app_item = client_information_cache.get(client_id)
 
-        redirect_uri_domain = parse_url(redirect_uri).netloc
-        client_id_domain = parse_url(client_id).netloc
+        parsed_redirect_uri = parse_url(redirect_uri)
+        parsed_client_id = parse_url(client_id)
 
-        redirect_uri_scheme = parse_url(redirect_uri).scheme
-        client_id_scheme = parse_url(client_id).scheme
+        redirect_uri_domain = parsed_redirect_uri.netloc
+        client_id_domain = parsed_client_id.netloc
+
+        redirect_uri_scheme = parsed_redirect_uri.scheme
+        client_id_scheme = parsed_client_id.scheme
 
         if (
             redirect_uri_domain != client_id_domain
             or redirect_uri_scheme != client_id_scheme
         ):
-            fetch_client = requests.get(client_id)
-
             confirmed_redirect_uri = False
 
             links = indieweb_utils.discover_endpoints(client_id, ["redirect_uri"])
@@ -108,23 +152,11 @@ def authorization_endpoint():
                 if url == redirect_uri:
                     confirmed_redirect_uri = True
 
-            link_tags = BeautifulSoup(fetch_client.text, "lxml").find_all("link")
-
-            for link in link_tags:
-                if link.get("rel") == "redirect_uri":
-                    URL = link.get("href")
-
-                    if url.startswith("/"):
-                        url = redirect_uri_scheme + redirect_uri_domain.strip("/") + url
-
-                    if url == redirect_uri:
-                        confirmed_redirect_uri = True
-
             if not confirmed_redirect_uri:
-                print('not confirmed redirect uri')
+                print("not confirmed redirect uri")
                 return jsonify({"error": "invalid_request"})
 
-        if client_id_app and client_id_app.status_code == 200:
+        if not h_app_item and client_id_app and client_id_app.status_code == 200:
             # if client id is json, return it
             if client_id_app.headers.get("Content-Type") == "application/json":
                 response = client_id_app.json()
@@ -134,6 +166,17 @@ def authorization_endpoint():
                     "url": response.get("client_uri"),
                     "summary": response.get("client_description"),
                 }
+            elif client_id.endswith("/client.json"):
+                try:
+                    client_file = requests.get(client_id).json()
+
+                    h_app_item = {
+                        "logo": client_file["client_logo"],
+                        "name": client_file["client_name"],
+                        "url": client_file["client_uri"],
+                    }
+                except:
+                    h_app_item = {}
             else:
                 try:
                     response = indieweb_utils.get_h_app_item(client_id_app.text)
@@ -146,16 +189,23 @@ def authorization_endpoint():
                 except:
                     h_app_item = {}
 
-                    if client_id.endswith("/client.json"):
-                        client_file = requests.get(client_id).json()
+            connection = sqlite3.connect("tokens.db")
+            with connection:
+                cursor = connection.cursor()
+                cursor.execute(
+                    "INSERT OR REPLACE INTO clients (client_id, name, logo, url, summary) VALUES (?, ?, ?, ?, ?)",
+                    (
+                        client_id,
+                        h_app_item.get("name"),
+                        h_app_item.get("logo"),
+                        h_app_item.get("url"),
+                        h_app_item.get("summary"),
+                    ),
+                )
 
-                        h_app_item = {
-                            "logo": client_file["client_logo"],
-                            "name": client_file["client_name"],
-                            "url": client_file["client_uri"],
-                        }
+        if h_app_item:
+            client_information_cache[client_id] = h_app_item
 
-        # set value of form fields
         confirm_auth_form.me.data = session.get("me")
         confirm_auth_form.client_id.data = client_id
         confirm_auth_form.redirect_uri.data = redirect_uri
@@ -181,94 +231,105 @@ def authorization_endpoint():
             title=f"Authenticate to {client_id.replace('https://', '').replace('http://', '').strip()}",
         )
 
-    # if not confirm_auth_form.validate_on_submit():
-    #     flash("There was an error with your submission.")
-    #     return redirect("/login")
-
     grant_type = request.form.get("grant_type")
     code = request.form.get("code")
     client_id = request.form.get("client_id")
     redirect_uri = request.form.get("redirect_uri")
-    code_challenge = request.form.get("code_challenge")
-    code_challenge_method = request.form.get("code_challenge_method")
+    code_verifier = request.form.get("code_verifier")
 
     try:
-        is_valid = indieweb_utils.validate_authorization_response(
+        redeem_code = indieweb_utils.redeem_code(
             grant_type,
             code,
             client_id,
             redirect_uri,
-            code_challenge,
-            code_challenge_method,
+            code_verifier,
+            config.SECRET_KEY
         )
-    except Exception:
+
+        access_token = redeem_code.access_token
+        scope = redeem_code.scope
+        me = redeem_code.me
+    except Exception as e:
+        print(e)
         return jsonify({"error": "invalid_request"})
+    
+    connection = sqlite3.connect("tokens.db")
 
-    if is_valid is False:
-        return jsonify({"error": "invalid_request"})
+    with connection:
+        cursor = connection.cursor()
 
-    try:
-        decoded_code = jwt.decode(code, config.SECRET_KEY, algorithms=["HS256"])
-    except:
-        return jsonify({"error": "invalid_grant"})
+        # if the code has already been redeemed, return an error
+        existing_token = cursor.execute(
+            "SELECT * FROM issued_tokens WHERE redeemed_from_code = ?", (code,)
+        ).fetchone()
+        if existing_token:
+            return jsonify({"error": "invalid_grant"})
 
-    try:
-        indieweb_utils.indieauth.server._verify_decoded_code(
-            client_id,
-            redirect_uri,
-            decoded_code["client_id"],
-            decoded_code["redirect_uri"],
-            decoded_code["expires"],
+        # generate a refresh token as random string
+        refresh_token = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=24)
         )
-    except Exception as error_message:
-        return jsonify({"error": error_message})
+        
+        h_app_item = client_information_cache.get(client_id)
 
-    return jsonify({"me": decoded_code["me"].strip("/") + "/"})
+        if not h_app_item:
+            try:
+                client_id_app = requests.get(client_id, timeout=5)
+
+                h_app_item = indieweb_utils.get_h_app_item(client_id_app.text, client_id)
+                client_information_cache[client_id] = h_app_item
+            except Exception:
+                h_app_item = {}
+
+        # create table if not exists issued_tokens (encoded_code, h_app, refresh_token, redeemed_from_code);
+        cursor.execute(
+            "INSERT INTO issued_tokens VALUES (?, ?, ?, ?)",
+            (
+                access_token,
+                json.dumps(h_app_item),
+                refresh_token,
+                code
+            ),
+        )
+
+    response = {"me": me.strip("/") + "/"}
+
+    response = compose_profile_response(me, scope, response)
+
+    return jsonify(response)
 
 
 @app.route("/issued")
 def view_issued_tokens():
-    authorization_token = request.args.get("authorization")
-    token = request.args.get("token")
-
-    if token:
-        connection = sqlite3.connect("tokens.db")
-
-        with connection:
-            cursor = connection.cursor()
-
-            issued_tokens = cursor.execute(
-                "SELECT * FROM issued_tokens WHERE encoded_code = ? AND me = ?", (token, session.get("me"))
-            ).fetchone()
-
-            if len(issued_tokens) == 0:
-                abort(404)
-
-        token_app = json.loads(issued_tokens[5])
-
-        return render_template(
-            "admin/single_token.html",
-            title="About an Issued Token",
-            token_app=token_app,
-            token=issued_tokens,
-            SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
-        )
-
-    if not session.get("logged_in") and authorization_token != config.API_KEY:
+    if not session.get("logged_in"):
         return redirect("/login")
 
     connection = sqlite3.connect("tokens.db")
 
     with connection:
         cursor = connection.cursor()
-        issued_tokens = cursor.execute("SELECT * FROM issued_tokens WHERE me = ?", (session.get("me"),)).fetchall()
+        issued_tokens = cursor.execute(
+            "SELECT * FROM issued_tokens WHERE me = ? ORDER BY now DESC",
+            (session.get("me"),),
+        ).fetchall()
+
+        decoded_tokens = []
+
+        for item in issued_tokens:
+            try:
+                ix = jwt.decode(item, config.SECRET_KEY, algorithms=["HS256"])
+                ix["h-app"] = json.loads(item[2]) if item[2] else {}
+                decoded_tokens.append(asdict(ix))
+            except Exception as e:
+                pass
 
     return render_template(
         "admin/issued.html",
         title="Issued Tokens",
         issued_tokens=issued_tokens,
         SCOPE_DEFINITIONS=SCOPE_DEFINITIONS,
-        me=session.get("me")
+        me=session.get("me"),
     )
 
 
@@ -277,13 +338,11 @@ def generate_key():
     if session.get("logged_in") != True:
         return redirect(f"/login?r={request.url}")
 
-    me = request.form.get("me")
     client_id = request.form.get("client_id")
     redirect_uri = request.form.get("redirect_uri")
     response_type = request.form.get("response_type")
     state = request.form.get("state")
     code_challenge_method = request.form.get("code_challenge_method")
-    code_challenge = request.form.get("code_challenge")
     scope = request.form.get("scope").lower()
     is_manually_issued = request.form.get("is_manually_issued")
 
@@ -295,7 +354,7 @@ def generate_key():
 
     try:
         response = indieweb_utils.generate_auth_token(
-            me,
+            request.form.get("me"),
             client_id,
             redirect_uri,
             response_type,
@@ -303,7 +362,6 @@ def generate_key():
             code_challenge_method,
             final_scope,
             config.SECRET_KEY,
-            code_challenge
         )
 
         encoded_code = response.code
@@ -311,182 +369,80 @@ def generate_key():
         print(e)
         return jsonify({"error": "invalid_request"})
 
-    try:
-        client_id_app = requests.get(client_id, timeout=5)
-
-        h_app_item = indieweb_utils.get_h_app_item(client_id_app.text, client_id)
-    except Exception:
-        h_app_item = {}
-
-    connection = sqlite3.connect("tokens.db")
-
-    with connection:
-        cursor = connection.cursor()
-
-        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        already_issued_to_client = cursor.execute(
-            "SELECT * FROM issued_tokens WHERE client_id = ?", (client_id,)
-        ).fetchall()
-
-        # delete tokens that have already been issued to the client
-        # ensures that more than one token cannot be active per client
-        if len(already_issued_to_client) > 0:
-            cursor.execute(
-                "DELETE FROM issued_tokens WHERE client_id = ?", (client_id,)
-            )
-
-        # create table if not exists issued_tokens (encoded_code, me, now, client_id, expires, h_app, scope);
-        cursor.execute(
-            "INSERT INTO issued_tokens VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                encoded_code,
-                me,
-                now,
-                client_id,
-                int(time.time()) + 3600,
-                json.dumps(h_app_item),
-                "",  # scope
-            ),
-        )
-
     if is_manually_issued and is_manually_issued == "true":
         flash(
             f"<p>Your token was successfully issued.</p><p>Your new token is: {encoded_code}"
         )
         return redirect("/issued")
 
-    return redirect(redirect_uri.strip("/") + f"?code={encoded_code}&state={state}")
+    return redirect(redirect_uri.strip("/") + f"?code={encoded_code}&state={state}&iss={config.BASE_URL}")
 
 
-@app.route("/revoke")
-def revoke_from_user_interface():
-    token_to_revoke = request.args.get("token")
-
-    if not token_to_revoke:
-        return jsonify({"error": "invalid_request"})
-
-    connection = sqlite3.connect("tokens.db")
-
-    with connection:
-        cursor = connection.cursor()
-        if token_to_revoke == "all":
-            cursor.execute("DELETE FROM issued_tokens")
-        else:
-            cursor.execute(
-                "DELETE FROM issued_tokens WHERE encoded_code = ?", (token_to_revoke,)
-            )
-
-    r = requests.post(
-        config.AUTH_SERVER_URL.strip("/") + "/token",
-        data={"token": token_to_revoke, "action": "revoke"},
-    )
-
-    if r.status_code == 200:
-        flash("Your token was revoked")
-    else:
-        flash("There was an error revoking your token")
-
-    return redirect("/issued")
-
-
-@app.route("/token", methods=["GET", "POST"])
+@app.route("/token", methods=["POST"])
 def token_endpoint():
-    if request.method == "GET":
-        authorization = request.headers.get("authorization")
-
-        if authorization is None:
-            return jsonify({"error": "invalid_request"})
-
-        grant_type = request.args.get("grant_type")
-        me = request.args.get("me")
-
-        connection = sqlite3.connect("tokens.db")
-
-        with connection:
-            cursor = connection.cursor()
-
-            is_revoked = cursor.execute(
-                "SELECT * FROM revoked_tokens WHERE token = ?", (authorization,)
-            ).fetchone()
-
-            if is_revoked:
-                return jsonify({"error": "invalid_grant"})
-
-        authorization = authorization.replace("Bearer ", "")
-
-        try:
-            decoded_authorization_code = jwt.decode(
-                authorization, config.SECRET_KEY, algorithms=["HS256"]
-            )
-        except Exception as e:
-            return jsonify({"error": "invalid_code"})
-
-        if int(time.time()) > decoded_authorization_code["expires"]:
-            return jsonify({"error": "invalid_grant"})
-
-        me = decoded_authorization_code["me"]
-        client_id = decoded_authorization_code["client_id"]
-        scope = decoded_authorization_code["scope"]
-
-        resource = decoded_authorization_code["resource"]
-
-        if resource != "all":
-            if request.path not in resource:
-                return jsonify({"error": "invalid_request"})
-
-        if "profile" in scope:
-            parsed_profile = indieweb_utils.get_profile(me)
-
-            if parsed_profile:
-                return jsonify(
-                    {
-                        "me": me.strip("/") + "/",
-                        "client_id": client_id,
-                        "scope": scope,
-                        "profile": asdict(parsed_profile),
-                    }
-                )
-
-        response = {"me": me.strip("/") + "/", "client_id": client_id, "scope": scope}
-
-        db = sqlite3.connect("tokens.db")
-
-        with db:
-            cursor = db.cursor()
-
-            issued_tokens = cursor.execute(
-                "SELECT * FROM issued_tokens WHERE token = ?", (authorization,)
-            ).fetchone()
-
-            if not issued_tokens:
-                return jsonify({"error": "invalid_grant"})
-
-            response["resource"] = issued_tokens[6]
-
-        return jsonify(response)
-
-    action = request.form.get("action")
-
-    if action and action == "revoke":
-        connection = sqlite3.connect("tokens.db")
-
-        with connection:
-            cursor = connection.cursor()
-
-            cursor.execute(
-                "INSERT INTO revoked_tokens VALUES (?)", (request.form.get("token"),)
-            )
-
-        return "", 200
-
     grant_type = request.form.get("grant_type")
+    refresh_token = request.form.get("refresh_token")
     code = request.form.get("code")
     client_id = request.form.get("client_id")
     redirect_uri = request.form.get("redirect_uri")
     code_verifier = request.form.get("code_verifier")
 
-    access = "all"
+    if grant_type == "refresh_token":
+        db = sqlite3.connect("tokens.db")
+        with db:
+            cursor = db.cursor()
+
+            issued_tokens = cursor.execute(
+                "SELECT * FROM issued_tokens WHERE refresh_token = ?", (me,)
+            ).fetchone()
+
+            if not issued_tokens:
+                return jsonify({"error": "invalid_grant"})
+
+            me = issued_tokens[1]
+            client_id = issued_tokens[3]
+            scope = issued_tokens[6]
+
+            exp = int(time.time()) + 86400 * 90
+            iat = int(time.time())
+
+            client_requested_scope = request.args.get("scope")
+
+            client_requested_scope_items = client_requested_scope.split(" ") if client_requested_scope else []
+
+            # intersect requested scope with original scope
+            # this will allow us to only issue the maximum scopes that were already authorised
+            # clients should never be able to add an additional scope at the refresh stage
+            previously_issued_scopes = scope.split(" ")
+
+            if client_requested_scope:
+                scope = " ".join(
+                    list(
+                        set(client_requested_scope_items) & set(previously_issued_scopes)
+                    )
+                )
+
+            new_token = jwt.encode(
+                {
+                    "me": me,
+                    "client_id": client_id,
+                    "scope": scope,
+                    "exp": exp,
+                    "iat": iat
+                },
+                config.SECRET_KEY,
+                algorithm="HS256"
+            )
+
+            cursor.execute(
+                "UPDATE issued_tokens SET encoded_code = ? WHERE encoded_code = ?",
+                (new_token, issued_tokens[0],)
+            )
+
+            return jsonify(
+                {"access_token": new_token, "token_type": "Bearer", "scope": scope, "me": me, "refresh_token": refresh_token, "expires_in": expires_in}
+            )
+
     try:
         redeem_code = indieweb_utils.redeem_code(
             grant_type,
@@ -494,21 +450,60 @@ def token_endpoint():
             client_id,
             redirect_uri,
             code_verifier,
-            config.SECRET_KEY,
-            resource=access,
+            config.SECRET_KEY
         )
 
         access_token = redeem_code.access_token
         scope = redeem_code.scope
         me = redeem_code.me
+        exp = redeem_code.exp
+        iat = redeem_code.iat
     except Exception as e:
         print(e)
         return jsonify({"error": "invalid_request"})
+    
+    connection = sqlite3.connect("tokens.db")
+
+    with connection:
+        cursor = connection.cursor()
+
+        # if the code has already been redeemed, return an error
+        existing_token = cursor.execute(
+            "SELECT * FROM issued_tokens WHERE redeemed_from_code = ?", (code,)
+        ).fetchone()
+        if existing_token:
+            return jsonify({"error": "invalid_grant"})
+
+        # generate a refresh token as random string
+        refresh_token = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=24)
+        )
+        
+        h_app_item = client_information_cache.get(client_id)
+
+        if not h_app_item:
+            try:
+                client_id_app = requests.get(client_id, timeout=5)
+
+                h_app_item = indieweb_utils.get_h_app_item(client_id_app.text, client_id)
+                client_information_cache[client_id] = h_app_item
+            except Exception:
+                h_app_item = {}
+
+        # create table if not exists issued_tokens (encoded_code, h_app, refresh_token, redeemed_from_code);
+        cursor.execute(
+            "INSERT INTO issued_tokens VALUES (?, ?, ?, ?)",
+            (
+                access_token,
+                json.dumps(h_app_item),
+                refresh_token,
+                code
+            ),
+        )
 
     return jsonify(
-        {"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me}
+        {"access_token": access_token, "token_type": "Bearer", "scope": scope, "me": me, "refresh_token": refresh_token, "expires_in": exp}
     )
-
 
 @app.route("/.well-known/oauth-authorization-server")
 def oauth_authorization_server():
@@ -521,6 +516,86 @@ def oauth_authorization_server():
         "response_types_supported": ["code"],
         "scopes_supported": SCOPE_DEFINITIONS,
         "token_endpoint": config.TOKEN_SERVER_URL,
+        "revocation_endpoint": config.BASE_URL + "/revocation",
+        "introspection_endpoint": config.BASE_URL + "/introspection",
+        "userinfo_endpoint": config.BASE_URL + "/userinfo",
+        "service_documentation": "https://indieauth.spec.indieweb.org"
     }
 
     return jsonify(oauth_server)
+
+@app.route("/revocation", methods=["POST"])
+def revoke_access_token():
+    token = request.form.get("token")
+    if not token:
+        return jsonify({"error": "invalid_request"}), 400
+
+    connection = sqlite3.connect("tokens.db")
+
+    with connection:
+        cursor = connection.cursor()
+        
+        cursor.execute("DELETE FROM issued_tokens WHERE encoded_code = ?", (token,))
+
+    return "", 200
+
+@app.route("/introspection", methods=["POST"])
+def introspect_access_token():
+    token = request.form.get("token")
+    if not token:
+        return jsonify({"error": "invalid_request"}), 400
+
+    connection = sqlite3.connect("tokens.db")
+
+    with connection:
+        cursor = connection.cursor()
+
+        issued_token = cursor.execute(
+            "SELECT * FROM issued_tokens WHERE encoded_code = ?", (token,)
+        ).fetchone()
+
+        if not issued_token:
+            return jsonify({"active": False})
+        
+        try:
+            decoded_token = jwt.decode(issued_token[0], config.SECRET_KEY, algorithms=["HS256"])
+        except Exception as e:
+            return jsonify({"active": False})
+
+    return jsonify(
+        {
+            "active": True,
+            "scope": decoded_token["scope"],
+            "client_id": decoded_token["client_id"],
+            "me": decoded_token["me"],
+            "token_type": "Bearer",
+            "exp": decoded_token["exp"],
+            "iat": decoded_token["iat"],
+        }
+    )
+
+@app.route("/userinfo")
+def userinfo():
+    authorization = request.headers.get("authorization")
+
+    if authorization is None:
+        return jsonify({"error": "invalid_request"}), 400
+
+    authorization = authorization.replace("Bearer ", "")
+
+    try:
+        decoded_authorization_code = jwt.decode(
+            authorization, config.SECRET_KEY, algorithms=["HS256"]
+        )
+    except Exception as e:
+        return jsonify({"error": "invalid_token"}), 401
+
+    me = decoded_authorization_code["me"]
+    scope = decoded_authorization_code["scope"]
+
+    if "profile" not in scope:
+        return jsonify({"error": "insufficient_scope"}), 403
+    
+    response = compose_profile_response(me, scope, {})
+
+    return jsonify(response)

@@ -11,7 +11,13 @@
             </ul>
          {% endif %}
       {% endwith %}
-      <p>To sign in as <code>{{ session.get("rel_me_check") }}</code>, choose one of the authentication methods below:</p>
+      {% if representative_h_card %}
+      <section class="profile-card">
+         <img src="{{ profile_picture }}" alt="Profile photo for {{ name }}" height="100" width="100" />
+         <p>{{ name }} (<a href="{{ session.get("rel_me_check") }}">{{ session.get("rel_me_check") }}</a>)</p>
+      </section>
+      {% endif %}
+      <p>To sign in as <code>{{ session.get("rel_me_check") }}</code>, choose a sign in method:</p>
       {% if rel_me_links %}
          <ul class="rel_me_links">
             {% for l in rel_me_links %}
